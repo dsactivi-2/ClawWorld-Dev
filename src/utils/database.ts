@@ -14,32 +14,47 @@ const log = createLogger('Database');
 
 let pool: Pool | null = null;
 
-function buildConnectionConfig(): ConstructorParameters<typeof Pool>[0] {
+type PoolConfig = ConstructorParameters<typeof Pool>[0] & { max?: number };
+
+let _poolConfig: PoolConfig | null = null;
+
+function buildConnectionConfig(): PoolConfig {
+  if (_poolConfig) return _poolConfig;
+
   const url = process.env['DATABASE_URL'];
+  const isProduction = process.env['NODE_ENV'] === 'production';
+  const poolMax = parseInt(process.env['DB_POOL_MAX'] ?? '20', 10);
+
   if (url) {
-    return {
+    _poolConfig = {
       connectionString: url,
-      max: parseInt(process.env['DB_POOL_MAX'] ?? '20', 10),
+      max: poolMax,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
-      ssl:
-        process.env['NODE_ENV'] === 'production'
-          ? { rejectUnauthorized: true }
-          : false,
+      ssl: isProduction ? { rejectUnauthorized: true } : false,
     };
+    return _poolConfig;
   }
 
-  return {
+  const password = process.env['DB_PASSWORD'];
+  if (!password) {
+    throw new Error(
+      'DB_PASSWORD environment variable is required (or set DATABASE_URL)',
+    );
+  }
+
+  _poolConfig = {
     host: process.env['DB_HOST'] ?? 'localhost',
     port: parseInt(process.env['DB_PORT'] ?? '5432', 10),
     database: process.env['DB_NAME'] ?? 'openclaw_teams',
     user: process.env['DB_USER'] ?? 'openclaw',
-    password: process.env['DB_PASSWORD'] ?? 'changeme',
-    max: parseInt(process.env['DB_POOL_MAX'] ?? '20', 10),
+    password,
+    max: poolMax,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
-    ssl: process.env['NODE_ENV'] === 'production' ? { rejectUnauthorized: true } : false,
+    ssl: isProduction ? { rejectUnauthorized: true } : false,
   };
+  return _poolConfig;
 }
 
 /**
@@ -66,8 +81,9 @@ export function getPool(): Pool {
       log.debug('Database connection removed from pool');
     });
 
+    const cfg = buildConnectionConfig();
     log.info('PostgreSQL connection pool initialised', {
-      max: (buildConnectionConfig() as { max?: number }).max ?? 20,
+      max: cfg.max ?? 20,
       host: process.env['DB_HOST'] ?? 'localhost',
       database: process.env['DB_NAME'] ?? 'openclaw_teams',
     });
