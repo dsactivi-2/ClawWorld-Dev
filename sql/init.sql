@@ -333,7 +333,10 @@ DO $$ BEGIN
     END IF;
 END $$;
 
-GRANT CONNECT ON DATABASE current_database() TO openclaw_app;
+DO $$
+BEGIN
+    EXECUTE 'GRANT CONNECT ON DATABASE ' || quote_ident(current_database()) || ' TO openclaw_app';
+END $$;
 GRANT USAGE ON SCHEMA public TO openclaw_app;
 GRANT SELECT, INSERT, UPDATE ON agents          TO openclaw_app;
 GRANT SELECT, INSERT, UPDATE ON agent_sessions  TO openclaw_app;

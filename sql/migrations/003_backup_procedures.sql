@@ -62,6 +62,26 @@ CREATE INDEX IF NOT EXISTS idx_restore_jobs_backup_job_id ON restore_jobs (backu
 CREATE INDEX IF NOT EXISTS idx_restore_jobs_status        ON restore_jobs (status);
 CREATE INDEX IF NOT EXISTS idx_restore_jobs_created_at    ON restore_jobs (created_at DESC);
 
+-- -------------------------------------------------------
+-- Staging table for agent state snapshots
+-- NOTE: Defined BEFORE backup_agent_state() so the function
+-- body resolves cleanly even in strict-validation contexts.
+-- -------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS _backup_agent_state_snapshot (
+    id                  UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    backup_job_id       UUID        NOT NULL REFERENCES backup_jobs (id) ON DELETE CASCADE,
+    snapshot_time       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    agents_data         JSONB,
+    open_sessions_data  JSONB,
+    inflight_tasks_data JSONB
+);
+
+CREATE INDEX IF NOT EXISTS idx_backup_agent_state_snapshot_job_id
+    ON _backup_agent_state_snapshot (backup_job_id);
+CREATE INDEX IF NOT EXISTS idx_backup_agent_state_snapshot_time
+    ON _backup_agent_state_snapshot (snapshot_time DESC);
+
 -- ============================================================
 -- PROCEDURE: backup_agent_state
 -- Creates a JSON snapshot of all live agent state into a
@@ -139,24 +159,6 @@ COMMENT ON FUNCTION backup_agent_state IS
     'Creates a JSON snapshot of all live agent state (agents, open sessions, in-flight tasks) '
     'into the _backup_agent_state_snapshot table and records the operation in backup_jobs. '
     'Returns the backup_job UUID.';
-
--- -------------------------------------------------------
--- Staging table for agent state snapshots
--- -------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS _backup_agent_state_snapshot (
-    id                  UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    backup_job_id       UUID        NOT NULL REFERENCES backup_jobs (id) ON DELETE CASCADE,
-    snapshot_time       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    agents_data         JSONB,
-    open_sessions_data  JSONB,
-    inflight_tasks_data JSONB
-);
-
-CREATE INDEX IF NOT EXISTS idx_backup_agent_state_snapshot_job_id
-    ON _backup_agent_state_snapshot (backup_job_id);
-CREATE INDEX IF NOT EXISTS idx_backup_agent_state_snapshot_time
-    ON _backup_agent_state_snapshot (snapshot_time DESC);
 
 -- ============================================================
 -- PROCEDURE: backup_full_schema
