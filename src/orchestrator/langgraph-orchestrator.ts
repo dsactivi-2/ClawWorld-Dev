@@ -339,7 +339,7 @@ async function spawnBuilderTeams(state: GraphState): Promise<Partial<GraphState>
     const teamsSpawned: TeamConfig[] = [];
     const chunkSize = 3;
 
-    for (let i = 0; i < Math.max(rawAgents.length, 1); i += chunkSize) {
+    for (let i = 0; i < rawAgents.length; i += chunkSize) {
       const chunk = rawAgents.slice(i, i + chunkSize);
       const teamIndex = Math.floor(i / chunkSize) + 1;
 
