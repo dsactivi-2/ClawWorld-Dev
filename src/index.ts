@@ -127,7 +127,7 @@ async function createApp(): Promise<{
   // Orchestrator + skills
   // -------------------------------------------------------------------------
   const orchestrator = new LangGraphOrchestrator();
-  orchestrator.initializeGraph();
+  // constructor already calls buildGraph() — no need to call initializeGraph() here
   log.info('LangGraphOrchestrator initialised');
 
   const teamSkill = new TeamSpawningSkill();
