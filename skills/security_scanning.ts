@@ -901,7 +901,7 @@ export class SecurityScanningSkill {
       try {
         let content = await fs.readFile(fix.file, 'utf-8');
         if (content.includes(fix.oldContent)) {
-          content = content.replace(fix.oldContent, fix.newContent);
+          content = content.split(fix.oldContent).join(fix.newContent);
           await fs.writeFile(fix.file, content, 'utf-8');
           result.applied++;
           result.details.push({ file: fix.file, description: fix.description });

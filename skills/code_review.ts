@@ -391,7 +391,15 @@ export class CodeReviewSkill {
       const lang = inferLanguage(file.filename);
       const patch = file.patch ?? '';
 
-      const styleFindings = this._runStyleChecks(patch, TS_DEFAULT_RULES, file.filename);
+      const defaultRules =
+        lang === 'typescript' || lang === 'javascript'
+          ? TS_DEFAULT_RULES
+          : lang === 'python'
+            ? PY_DEFAULT_RULES
+            : lang === 'bash'
+              ? BASH_DEFAULT_RULES
+              : {};
+      const styleFindings = this._runStyleChecks(patch, defaultRules, file.filename);
       const secretFindings = this._runSecretScan(patch, file.filename);
       const findings = [...styleFindings, ...secretFindings];
 

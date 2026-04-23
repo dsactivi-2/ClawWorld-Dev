@@ -334,7 +334,7 @@ export class PerformanceProfilingSkill {
     if (error) throw new ProfilingValidationError(error.message);
 
     const model = options.model ?? 'default';
-    const inputTokens = options.inputTokensHint ?? 0;
+    let inputTokens = options.inputTokensHint ?? 0;
     const functionName = fn.name || 'anonymous';
     const startedAt = new Date().toISOString();
     const t0 = Date.now();
@@ -352,7 +352,7 @@ export class PerformanceProfilingSkill {
         const r = result as Record<string, unknown>;
         if (r['usage'] != null && typeof r['usage'] === 'object') {
           const usage = r['usage'] as Record<string, number>;
-          if (typeof usage['input_tokens'] === 'number') inputTokens || (options.inputTokensHint = usage['input_tokens']);
+          if (typeof usage['input_tokens'] === 'number') inputTokens = usage['input_tokens'];
           if (typeof usage['output_tokens'] === 'number') outputTokens = usage['output_tokens'];
         }
       }

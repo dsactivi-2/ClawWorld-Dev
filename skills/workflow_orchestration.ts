@@ -6,7 +6,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import Joi from 'joi';
 import { createLogger } from '../src/utils/logger';
 import type { WorkflowStep } from '../src/types/index';
@@ -630,10 +630,20 @@ export class WorkflowOrchestrationSkill extends EventEmitter {
   /**
    * Polls until the workflow transitions out of the 'paused' state.
    */
-  private async _waitForResume(instance: WorkflowInstance, signal: AbortSignal): Promise<void> {
+  private async _waitForResume(
+    instance: WorkflowInstance,
+    signal: AbortSignal,
+    timeoutMs = 5 * 60 * 1000,
+  ): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
     logger.debug('Waiting for workflow to resume', { instanceId: instance.instanceId });
     while (instance.status === 'paused') {
       if (signal.aborted) return;
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `Workflow "${instance.instanceId}" remained paused for ${timeoutMs}ms without a resume call`,
+        );
+      }
       await sleep(500);
     }
   }
