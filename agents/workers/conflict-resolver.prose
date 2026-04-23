@@ -1,7 +1,7 @@
 ---
 id: conflict-resolver
 name: Conflict Resolver
-model: claude-3-5-haiku
+model: claude-3-5-haiku-20241022
 role: WORKER
 level: 2
 workspace: /var/lib/openclaw/workspace-conflict-resolver

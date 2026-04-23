@@ -334,7 +334,7 @@ export class PerformanceProfilingSkill {
     if (error) throw new ProfilingValidationError(error.message);
 
     const model = options.model ?? 'default';
-    const inputTokens = options.inputTokensHint ?? 0;
+    let resolvedInputTokens = options.inputTokensHint ?? 0;
     const functionName = fn.name || 'anonymous';
     const startedAt = new Date().toISOString();
     const t0 = Date.now();
@@ -352,7 +352,7 @@ export class PerformanceProfilingSkill {
         const r = result as Record<string, unknown>;
         if (r['usage'] != null && typeof r['usage'] === 'object') {
           const usage = r['usage'] as Record<string, number>;
-          if (typeof usage['input_tokens'] === 'number') inputTokens || (options.inputTokensHint = usage['input_tokens']);
+          if (typeof usage['input_tokens'] === 'number') resolvedInputTokens = usage['input_tokens'];
           if (typeof usage['output_tokens'] === 'number') outputTokens = usage['output_tokens'];
         }
       }
@@ -365,7 +365,7 @@ export class PerformanceProfilingSkill {
     }
 
     const durationMs = Date.now() - t0;
-    const totalTokens = inputTokens + outputTokens;
+    const totalTokens = resolvedInputTokens + outputTokens;
     const estimatedCostUsd = totalTokens * costPerToken(model);
     const completedAt = new Date().toISOString();
 
@@ -373,7 +373,7 @@ export class PerformanceProfilingSkill {
     agentCallDuration
       .labels({ agent_id: agentId, function_name: functionName, success: String(success) })
       .observe(durationMs);
-    agentTokensUsed.labels({ agent_id: agentId, model, token_type: 'input' }).inc(inputTokens);
+    agentTokensUsed.labels({ agent_id: agentId, model, token_type: 'input' }).inc(resolvedInputTokens);
     agentTokensUsed.labels({ agent_id: agentId, model, token_type: 'output' }).inc(outputTokens);
     agentCostUsd.labels({ agent_id: agentId, model }).inc(estimatedCostUsd);
 
@@ -382,7 +382,7 @@ export class PerformanceProfilingSkill {
       agentId,
       functionName,
       durationMs,
-      inputTokens,
+      inputTokens: resolvedInputTokens,
       outputTokens,
       totalTokens,
       estimatedCostUsd,

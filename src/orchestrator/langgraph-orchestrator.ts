@@ -10,8 +10,8 @@
  *   6. deploySystem          — assemble final plan and mark deployment-ready
  *
  * Models used:
- *   - claude-3-5-sonnet  → heavyweight builder reasoning
- *   - claude-3-5-sonnet  → supervisor / validation reasoning
+ *   - claude-3-5-sonnet-20241022  → heavyweight builder reasoning
+ *   - claude-3-5-sonnet-20241022  → supervisor / validation reasoning
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -35,8 +35,8 @@ const log = createLogger('LangGraphOrchestrator');
 // Model constants
 // ---------------------------------------------------------------------------
 
-const MODEL_BUILDER = 'claude-3-5-sonnet';
-const MODEL_SUPERVISOR = 'claude-3-5-sonnet';
+const MODEL_BUILDER = 'claude-3-5-sonnet-20241022';
+const MODEL_SUPERVISOR = 'claude-3-5-sonnet-20241022';
 
 // ---------------------------------------------------------------------------
 // Retry configuration
@@ -74,15 +74,19 @@ function delay(ms: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Anthropic client helper
+// Anthropic client singleton
 // ---------------------------------------------------------------------------
 
+let _anthropicClient: Anthropic | null = null;
+
 function getAnthropicClient(): Anthropic {
+  if (_anthropicClient) return _anthropicClient;
   const apiKey = process.env['ANTHROPIC_API_KEY'];
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY environment variable is not set');
   }
-  return new Anthropic({ apiKey });
+  _anthropicClient = new Anthropic({ apiKey });
+  return _anthropicClient;
 }
 
 async function callClaude(
@@ -100,11 +104,12 @@ async function callClaude(
     messages: [{ role: 'user', content: userMessage }],
   });
 
-  const block = response.content[0];
-  if (!block || block.type !== 'text') {
-    throw new Error('Unexpected response format from Anthropic API');
+  // Iterate content blocks to find first text block (handles tool_use blocks gracefully)
+  const textBlock = response.content.find((b) => b.type === 'text');
+  if (!textBlock || textBlock.type !== 'text') {
+    throw new Error('Unexpected response format from Anthropic API — no text block found');
   }
-  return block.text;
+  return textBlock.text;
 }
 
 function safeJsonParse<T>(text: string, fallback: T): T {
@@ -218,7 +223,7 @@ Respond ONLY with valid JSON matching this schema:
     {
       "id": string,
       "name": string,
-      "model": "claude-3-5-sonnet",
+      "model": "claude-3-5-sonnet-20241022",
       "role": string,
       "responsibilities": string[],
       "tools": string[]
@@ -602,12 +607,18 @@ Respond ONLY with valid JSON:
 
     log.info(`${nodeName} completed`, { verdict: validation.verdict, score: validation.score });
 
+    // Increment retryCount when we are about to loop back to build_agents
+    const retryCount = validation.verdict === 'fix'
+      ? (state.retryCount ?? 0) + 1
+      : state.retryCount ?? 0;
+
     // Store validation result for conditional routing
     return {
       requirements: {
         ...state.requirements,
         _validationResult: validation,
       },
+      retryCount,
       currentStep: nodeName,
       stepHistory,
       decisions,
@@ -628,6 +639,7 @@ Respond ONLY with valid JSON:
         ...state.requirements,
         _validationResult: { passed: false, score: 0, verdict: 'fix', issues: [error.message] },
       },
+      retryCount: (state.retryCount ?? 0) + 1,
       currentStep: nodeName,
       stepHistory,
       errors,
@@ -729,6 +741,8 @@ async function deploySystem(state: GraphState): Promise<Partial<GraphState>> {
 // Conditional routing for validate_and_test
 // ---------------------------------------------------------------------------
 
+const MAX_FIX_RETRIES = 2;
+
 function routeAfterValidation(state: GraphState): string {
   const validation = state.requirements['_validationResult'] as
     | { verdict: 'deploy' | 'fix' | 'abort' }
@@ -741,8 +755,11 @@ function routeAfterValidation(state: GraphState): string {
       log.info('Routing: validation passed → deploy_system');
       return 'deploy_system';
     case 'fix':
-      // Re-enter build phase (one retry cycle)
-      log.warn('Routing: validation requested fix → build_agents');
+      if ((state.retryCount ?? 0) >= MAX_FIX_RETRIES) {
+        log.error(`Routing: max fix retries (${MAX_FIX_RETRIES}) reached → END`);
+        return END;
+      }
+      log.warn(`Routing: validation requested fix (retry ${(state.retryCount ?? 0) + 1}/${MAX_FIX_RETRIES}) → build_agents`);
       return 'build_agents';
     case 'abort':
     default:
@@ -815,6 +832,10 @@ export class LangGraphOrchestrator {
           value: (_prev: WorkflowError[], next: WorkflowError[]) => next,
           default: () => [],
         },
+        retryCount: {
+          value: (_prev: number, next: number) => next,
+          default: () => 0,
+        },
       },
     });
 
@@ -884,6 +905,7 @@ export class LangGraphOrchestrator {
       startTime: new Date().toISOString(),
       endTime: null,
       errors: [],
+      retryCount: 0,
     };
 
     try {

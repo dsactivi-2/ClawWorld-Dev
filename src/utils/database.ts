@@ -34,7 +34,7 @@ function buildConnectionConfig(): ConstructorParameters<typeof Pool>[0] {
     port: parseInt(process.env['DB_PORT'] ?? '5432', 10),
     database: process.env['DB_NAME'] ?? 'openclaw_teams',
     user: process.env['DB_USER'] ?? 'openclaw',
-    password: process.env['DB_PASSWORD'] ?? 'changeme',
+    password: process.env['DB_PASSWORD'],
     max: parseInt(process.env['DB_POOL_MAX'] ?? '20', 10),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
@@ -70,6 +70,16 @@ export function getPool(): Pool {
       max: (buildConnectionConfig() as { max?: number }).max ?? 20,
       host: process.env['DB_HOST'] ?? 'localhost',
       database: process.env['DB_NAME'] ?? 'openclaw_teams',
+    });
+
+    // Warm up one connection eagerly to surface credential errors at startup
+    pool.connect().then((client) => {
+      client.release();
+      log.debug('Database pool warm-up connection successful');
+    }).catch((err: Error) => {
+      log.error('Database pool warm-up failed — check credentials/connectivity', {
+        message: err.message,
+      });
     });
   }
 

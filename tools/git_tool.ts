@@ -1,7 +1,7 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface GitCloneOptions {
   repoUrl: string;
@@ -59,11 +59,14 @@ export class GitTool {
    * Clone a repository to a target directory, optionally checking out a specific branch.
    */
   async clone(repoUrl: string, targetDir: string, branch?: string): Promise<void> {
-    const branchFlag = branch ? `--branch ${branch}` : '';
-    const cmd = `git clone ${branchFlag} ${repoUrl} ${targetDir}`.trim().replace(/\s+/g, ' ');
+    const args = ['clone'];
+    if (branch) {
+      args.push('--branch', branch);
+    }
+    args.push(repoUrl, targetDir);
 
     try {
-      await execAsync(cmd);
+      await execFileAsync('git', args);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       throw new Error(`git clone failed for "${repoUrl}" -> "${targetDir}": ${msg}`);
@@ -81,14 +84,9 @@ export class GitTool {
       throw new Error('Commit message must not be empty');
     }
 
-    const escapedFiles = files.map(f => `"${f}"`).join(' ');
-    const escapedMessage = message.replace(/"/g, '\\"');
-
     try {
-      await execAsync(`git -C "${repoDir}" add ${escapedFiles}`);
-      const { stdout } = await execAsync(
-        `git -C "${repoDir}" commit -m "${escapedMessage}"`
-      );
+      await execFileAsync('git', ['-C', repoDir, 'add', ...files]);
+      const { stdout } = await execFileAsync('git', ['-C', repoDir, 'commit', '-m', message]);
 
       const hashMatch = stdout.match(/\[[\w/]+ ([a-f0-9]+)\]/);
       const hash = hashMatch?.[1] ?? 'unknown';
@@ -104,13 +102,11 @@ export class GitTool {
    * Push commits to a remote repository.
    */
   async push(repoDir: string, remote = 'origin', branch?: string): Promise<void> {
-    let cmd = `git -C "${repoDir}" push ${remote}`;
-    if (branch) {
-      cmd += ` ${branch}`;
-    }
+    const args = ['-C', repoDir, 'push', remote];
+    if (branch) args.push(branch);
 
     try {
-      await execAsync(cmd);
+      await execFileAsync('git', args);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       throw new Error(`git push failed in "${repoDir}" (remote: ${remote}): ${msg}`);
@@ -126,7 +122,7 @@ export class GitTool {
     }
 
     try {
-      await execAsync(`git -C "${repoDir}" checkout -b "${branchName}"`);
+      await execFileAsync('git', ['-C', repoDir, 'checkout', '-b', branchName]);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       throw new Error(
@@ -190,9 +186,7 @@ export class GitTool {
    */
   async getStatus(repoDir: string): Promise<GitStatusResult> {
     try {
-      const { stdout: statusOutput } = await execAsync(
-        `git -C "${repoDir}" status --porcelain=v1 -b`
-      );
+      const { stdout: statusOutput } = await execFileAsync('git', ['-C', repoDir, 'status', '--porcelain=v1', '-b']);
 
       const lines = statusOutput.split('\n').filter(l => l.trim());
       const branchLine = lines.shift() ?? '';
@@ -248,12 +242,8 @@ export class GitTool {
    */
   async getDiff(repoDir: string, fromRef: string, toRef: string): Promise<GitDiffResult> {
     try {
-      const { stdout: diffOutput } = await execAsync(
-        `git -C "${repoDir}" diff "${fromRef}" "${toRef}"`
-      );
-      const { stdout: statOutput } = await execAsync(
-        `git -C "${repoDir}" diff --stat "${fromRef}" "${toRef}"`
-      );
+      const { stdout: diffOutput } = await execFileAsync('git', ['-C', repoDir, 'diff', fromRef, toRef]);
+      const { stdout: statOutput } = await execFileAsync('git', ['-C', repoDir, 'diff', '--stat', fromRef, toRef]);
 
       const filesChanged: string[] = [];
       const fileRegex = /^\s*(.+?)\s+\|/gm;

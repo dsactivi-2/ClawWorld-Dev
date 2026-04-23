@@ -37,8 +37,10 @@ COPY package.json pnpm-lock.yaml tsconfig.json ./
 # Install ALL dependencies (dev + prod) for the TypeScript build
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# Copy all TypeScript source trees (rootDir is "." so all must be present)
 COPY src/ ./src/
+COPY skills/ ./skills/
+COPY tools/ ./tools/
 
 # Compile TypeScript → dist/
 RUN pnpm build
@@ -90,4 +92,4 @@ ENV NODE_ENV=production \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]

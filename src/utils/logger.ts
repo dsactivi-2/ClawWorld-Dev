@@ -3,6 +3,7 @@
  * Structured JSON logging for production, coloured console output for dev.
  */
 
+import fs from 'fs';
 import path from 'path';
 import winston from 'winston';
 
@@ -60,6 +61,7 @@ transports.push(
 
 // File transports — always write JSON regardless of environment
 const logsDir = path.resolve(process.cwd(), 'logs');
+fs.mkdirSync(logsDir, { recursive: true });
 
 transports.push(
   new winston.transports.File({

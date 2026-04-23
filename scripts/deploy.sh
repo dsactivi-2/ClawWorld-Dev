@@ -125,7 +125,43 @@ push_image() {
 }
 
 # -----------------------------------------------------------------------------
-# Step 4 — Apply Kubernetes manifests
+# Step 4 — Run database migrations
+# -----------------------------------------------------------------------------
+run_migrations() {
+  log_step "Running database migrations"
+
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log_warn "[DRY RUN] Skipping database migrations"
+    return 0
+  fi
+
+  # Run a one-off Job to apply migrations before rolling out the new image.
+  # This ensures the schema is ready before any new pod starts.
+  local job_name="openclaw-migrate-${IMAGE_TAG}"
+
+  kubectl run "${job_name}" \
+    --namespace="${NAMESPACE}" \
+    --image="${FULL_IMAGE}" \
+    --restart=Never \
+    --env="DATABASE_URL=$(kubectl get secret openclaw-secrets -n "${NAMESPACE}" -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
+    --command -- node dist/scripts/migrate.js 2>&1 | tee /tmp/migrate-${IMAGE_TAG}.log
+
+  local exit_code=$?
+  if [[ ${exit_code} -ne 0 ]]; then
+    log_error "Database migration failed (exit code: ${exit_code})"
+    log_error "Migration log:"
+    cat /tmp/migrate-${IMAGE_TAG}.log
+    die "Aborting deployment — fix migrations before rolling out"
+  fi
+
+  # Clean up migration job
+  kubectl delete pod "${job_name}" --namespace="${NAMESPACE}" --ignore-not-found=true
+
+  log_success "Database migrations completed"
+}
+
+# -----------------------------------------------------------------------------
+# Step 5 — Apply Kubernetes manifests
 # -----------------------------------------------------------------------------
 apply_manifests() {
   log_step "Applying Kubernetes manifests"
@@ -226,6 +262,7 @@ main() {
   check_prerequisites
   build_image
   push_image
+  run_migrations
   apply_manifests
   wait_for_rollout
   run_health_check

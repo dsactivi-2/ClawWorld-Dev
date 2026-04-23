@@ -8,6 +8,7 @@
  * DELETE /:id         — cancel workflow
  */
 
+import { randomUUID } from 'crypto';
 import { Router, Request, Response } from 'express';
 import Joi from 'joi';
 import { createLogger } from '../../utils/logger';
@@ -73,33 +74,29 @@ export function createWorkflowRouter(deps: WorkflowRouterDeps): Router {
     }
 
     const { userInput, stateKey } = value as { userInput: string; stateKey?: string };
-    const runKey = stateKey ?? `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const runKey = stateKey ?? randomUUID();
 
     log.info('Starting workflow', { runKey, inputLength: userInput.length, reqId });
 
-    try {
-      // Run asynchronously — immediately return an accepted response
-      const finalState = await orchestrator.execute(userInput, runKey);
+    // Return 202 Accepted immediately — LLM orchestration runs asynchronously
+    res.status(202).json({
+      id: runKey,
+      status: 'accepted',
+      message: 'Workflow accepted and queued for execution',
+      statusUrl: `/api/workflows/${runKey}`,
+      requestId: reqId,
+    });
 
-      // Persist to memory
-      await memoryManager.saveStateWithHistory(runKey, finalState);
-
-      return res.status(201).json({
-        id: runKey,
-        status: finalState.deploymentReady ? 'completed' : 'running',
-        currentStep: finalState.currentStep,
-        deploymentReady: finalState.deploymentReady,
-        stepCount: finalState.stepHistory.length,
-        errorCount: finalState.errors.length,
-        startTime: finalState.startTime,
-        endTime: finalState.endTime,
-        requestId: reqId,
+    // Fire-and-forget execution; errors are logged but do not affect the 202 response
+    orchestrator
+      .execute(userInput, runKey)
+      .then((finalState) => memoryManager.saveStateWithHistory(runKey, finalState))
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        log.error('Async workflow execution failed', { runKey, message });
       });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      log.error('Failed to start workflow', { runKey, message, reqId });
-      return res.status(500).json(errorBody('Failed to execute workflow', message, reqId));
-    }
+
+    return;
   });
 
   // -------------------------------------------------------------------------

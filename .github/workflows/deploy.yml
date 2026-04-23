@@ -13,6 +13,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: clawworld/openclaw-teams
   NAMESPACE: openclaw-production
+  STAGING_NAMESPACE: openclaw-staging
   DEPLOYMENT: openclaw-gateway
 
 jobs:
@@ -80,11 +81,101 @@ jobs:
             BUILD_DATE=${{ steps.meta.outputs.labels['org.opencontainers.image.created'] }}
 
   # ---------------------------------------------------------------------------
-  # Job 3 — Deploy to Kubernetes
+  # Job 3 — Deploy to staging and run smoke tests (gate for production)
+  # ---------------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    environment:
+      name: staging
+      url: https://staging.openclaw.yourdomain.com
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.29.0"
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "${HOME}/.kube"
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > "${HOME}/.kube/config"
+          chmod 600 "${HOME}/.kube/config"
+
+      - name: Verify cluster connectivity
+        run: kubectl cluster-info --request-timeout=10s
+
+      - name: Apply staging manifests
+        run: |
+          for manifest in \
+            kubernetes/namespace.yaml \
+            kubernetes/configmap.yaml \
+            kubernetes/deployment.yaml \
+            kubernetes/service.yaml; do
+            echo "Applying ${manifest} to staging..."
+            kubectl apply -f "${manifest}" --namespace="${{ env.STAGING_NAMESPACE }}"
+          done
+
+      - name: Update staging image
+        run: |
+          kubectl set image deployment/${{ env.DEPLOYMENT }} \
+            ${{ env.DEPLOYMENT }}=${{ needs.build-push.outputs.image }} \
+            --namespace="${{ env.STAGING_NAMESPACE }}"
+
+      - name: Wait for staging rollout
+        run: |
+          kubectl rollout status deployment/${{ env.DEPLOYMENT }} \
+            --namespace="${{ env.STAGING_NAMESPACE }}" \
+            --timeout=180s
+
+      - name: Smoke test — health endpoint
+        run: |
+          # Port-forward staging service for smoke test
+          kubectl port-forward \
+            service/${{ env.DEPLOYMENT }} 18080:3000 \
+            --namespace="${{ env.STAGING_NAMESPACE }}" &
+          PF_PID=$!
+          sleep 5
+
+          echo "Running smoke tests against staging..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --retry 5 --retry-delay 3 --max-time 10 \
+            http://localhost:18080/health)
+
+          kill "${PF_PID}" 2>/dev/null || true
+
+          echo "Health endpoint returned: ${HTTP_STATUS}"
+          if [[ "${HTTP_STATUS}" != "200" ]]; then
+            echo "ERROR: Staging smoke test FAILED (HTTP ${HTTP_STATUS})"
+            exit 1
+          fi
+          echo "Staging smoke test PASSED"
+
+      - name: Staging summary
+        if: always()
+        run: |
+          echo "## Staging Gate" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`${{ needs.build-push.outputs.image }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Staging Namespace | \`${{ env.STAGING_NAMESPACE }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate Result | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ---------------------------------------------------------------------------
+  # Job 4 — Deploy to production (only after staging gate passes)
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to Kubernetes
-    needs: build-push
+    needs: [build-push, deploy-staging]
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -164,7 +255,7 @@ jobs:
           echo "| URL | https://openclaw.yourdomain.com |" >> $GITHUB_STEP_SUMMARY
 
   # ---------------------------------------------------------------------------
-  # Job 4 — Slack notification
+  # Job 5 — Slack notification
   # ---------------------------------------------------------------------------
   notify:
     name: Notify Slack

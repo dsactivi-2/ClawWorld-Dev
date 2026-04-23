@@ -1,7 +1,7 @@
 ---
 id: unit-tester
 name: Unit Tester
-model: claude-3-5-haiku
+model: claude-3-5-haiku-20241022
 role: WORKER
 level: 2
 workspace: /var/lib/openclaw/workspace-unit-tester

@@ -56,14 +56,55 @@ interface PaginatedStates {
 // GraphMemoryManager
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Bounded LRU cache
+// ---------------------------------------------------------------------------
+
+/** Simple LRU cache backed by a Map (insertion-order eviction). */
+class LruCache<K, V> {
+  private readonly map = new Map<K, V>();
+
+  constructor(private readonly maxSize: number) {}
+
+  get(key: K): V | undefined {
+    if (!this.map.has(key)) return undefined;
+    // Move to end (most-recently-used)
+    const value = this.map.get(key) as V;
+    this.map.delete(key);
+    this.map.set(key, value);
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.map.has(key)) {
+      this.map.delete(key);
+    } else if (this.map.size >= this.maxSize) {
+      // Evict least-recently-used (first entry)
+      const lruKey = this.map.keys().next().value as K;
+      this.map.delete(lruKey);
+    }
+    this.map.set(key, value);
+  }
+
+  delete(key: K): void {
+    this.map.delete(key);
+  }
+
+  clear(): void {
+    this.map.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 export class GraphMemoryManager {
   private readonly pool: Pool;
 
   /**
-   * In-memory state cache (stateKey -> GraphState).
-   * Used to avoid redundant DB reads within the same process lifecycle.
+   * Bounded LRU in-memory state cache (max 500 entries).
+   * Avoids redundant DB reads within the same process lifecycle.
    */
-  private readonly cache = new Map<string, GraphState>();
+  private readonly cache = new LruCache<string, GraphState>(500);
 
   constructor(pool: Pool) {
     this.pool = pool;
@@ -459,31 +500,33 @@ export class GraphMemoryManager {
    * @returns Number of state rows deleted.
    */
   async cleanupOldStates(daysOld: number): Promise<number> {
-    if (daysOld <= 0) {
+    if (!Number.isInteger(daysOld) || daysOld <= 0) {
       throw new Error('daysOld must be a positive integer');
     }
 
     try {
-      const result = await this.pool.query<{ count: string }>(
+      // Use interval multiplication — safe parameterised form, no string concat
+      const result = await this.pool.query<{ state_key: string }>(
         `
         WITH deleted AS (
           DELETE FROM langgraph_states
-          WHERE updated_at < NOW() - ($1 || ' days')::INTERVAL
+          WHERE updated_at < NOW() - (INTERVAL '1 day' * $1)
           RETURNING state_key
         )
-        SELECT COUNT(*) AS count FROM deleted
+        SELECT state_key FROM deleted
         `,
         [daysOld],
       );
 
-      const deleted = parseInt(result.rows[0]?.count ?? '0', 10);
+      const deletedKeys = result.rows.map((r) => r.state_key);
 
-      // Evict deleted keys from cache (best effort — keys not tracked here,
-      // so clear the full cache to prevent stale reads)
-      this.cache.clear();
+      // Evict only the deleted keys from cache — don't wipe healthy entries
+      for (const key of deletedKeys) {
+        this.cache.delete(key);
+      }
 
-      log.info('Old states cleaned up', { daysOld, deleted });
-      return deleted;
+      log.info('Old states cleaned up', { daysOld, deleted: deletedKeys.length });
+      return deletedKeys.length;
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       log.error('Failed to clean up old states', { message: error.message });

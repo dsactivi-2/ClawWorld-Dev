@@ -43,6 +43,9 @@ export interface GraphState {
 
   /** Accumulated errors across all steps */
   errors: WorkflowError[];
+
+  /** Number of times the validate→fix→build retry loop has been entered */
+  retryCount: number;
 }
 
 export interface Decision {

@@ -35,12 +35,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: TypeScript type check
+        id: typecheck
         run: pnpm typecheck
 
       - name: ESLint
+        id: lint
         run: pnpm lint
 
       - name: Jest unit tests
+        id: test
         run: pnpm test:unit
         env:
           CI: "true"
@@ -57,6 +60,7 @@ jobs:
         run: pnpm build
 
       - name: Docker build (no push)
+        id: docker-build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -71,11 +75,12 @@ jobs:
       - name: Build summary
         if: always()
         run: |
+          status_icon() { [[ "$1" == "success" ]] && echo "✅" || echo "❌ \`$1\`"; }
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript check | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| ESLint | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unit Tests | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript check | $(status_icon '${{ steps.typecheck.outcome }}') |" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint           | $(status_icon '${{ steps.lint.outcome }}') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests       | $(status_icon '${{ steps.test.outcome }}') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build     | $(status_icon '${{ steps.docker-build.outcome }}') |" >> $GITHUB_STEP_SUMMARY
           echo "| Branch: \`${{ github.ref_name }}\` | Commit: \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY

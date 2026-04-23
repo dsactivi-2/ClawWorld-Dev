@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
     status      task_status_enum NOT NULL DEFAULT 'pending',
     duration_ms INTEGER,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT agent_tasks_duration_positive CHECK (duration_ms IS NULL OR duration_ms >= 0),
     CONSTRAINT agent_tasks_input_is_object CHECK (jsonb_typeof(input) = 'object'),
@@ -124,6 +125,10 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
 COMMENT ON TABLE agent_tasks IS 'Individual task invocations: inputs, outputs, status, and execution duration';
 COMMENT ON COLUMN agent_tasks.task_type IS 'Logical task category, e.g. code_generation, code_review, test_generation';
 COMMENT ON COLUMN agent_tasks.duration_ms IS 'Wall-clock execution time in milliseconds; NULL while task is pending/running';
+
+CREATE TRIGGER trg_agent_tasks_updated_at
+    BEFORE UPDATE ON agent_tasks
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
 
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_agent_id   ON agent_tasks (agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_status     ON agent_tasks (status);
@@ -202,6 +207,7 @@ CREATE TABLE IF NOT EXISTS workflow_runs (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     workflow_id   UUID NOT NULL REFERENCES workflows (id) ON DELETE RESTRICT,
     state         JSONB NOT NULL DEFAULT '{}',
+    status        workflow_status_enum NOT NULL DEFAULT 'draft',
     current_node  VARCHAR(255),
     started_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at  TIMESTAMPTZ,
@@ -214,8 +220,10 @@ CREATE TABLE IF NOT EXISTS workflow_runs (
 
 COMMENT ON TABLE workflow_runs IS 'Runtime execution instances of workflow definitions, including live state and progress';
 COMMENT ON COLUMN workflow_runs.current_node IS 'Name of the currently executing node; NULL when run is complete or not yet started';
+COMMENT ON COLUMN workflow_runs.status IS 'Execution lifecycle status mirroring workflow_status_enum';
 
 CREATE INDEX IF NOT EXISTS idx_workflow_runs_workflow_id  ON workflow_runs (workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_status       ON workflow_runs (status);
 CREATE INDEX IF NOT EXISTS idx_workflow_runs_started_at   ON workflow_runs (started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_workflow_runs_completed_at ON workflow_runs (completed_at DESC) WHERE completed_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_workflow_runs_active       ON workflow_runs (workflow_id) WHERE completed_at IS NULL;
@@ -257,10 +265,16 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_data_gin   ON audit_log USING GIN (data
 
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY audit_log_insert_only
+-- Allow reads for authenticated roles
+CREATE POLICY audit_log_select
     ON audit_log
-    FOR ALL
-    USING (TRUE)
+    FOR SELECT
+    USING (TRUE);
+
+-- Allow inserts only (no UPDATE/DELETE — enforced by triggers above)
+CREATE POLICY audit_log_insert
+    ON audit_log
+    FOR INSERT
     WITH CHECK (TRUE);
 
 -- Prevent updates
@@ -333,7 +347,9 @@ DO $$ BEGIN
     END IF;
 END $$;
 
-GRANT CONNECT ON DATABASE current_database() TO openclaw_app;
+DO $$ BEGIN
+    EXECUTE format('GRANT CONNECT ON DATABASE %I TO openclaw_app', current_database());
+END $$;
 GRANT USAGE ON SCHEMA public TO openclaw_app;
 GRANT SELECT, INSERT, UPDATE ON agents          TO openclaw_app;
 GRANT SELECT, INSERT, UPDATE ON agent_sessions  TO openclaw_app;

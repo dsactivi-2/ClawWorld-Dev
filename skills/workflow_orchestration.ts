@@ -6,7 +6,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import Joi from 'joi';
 import { createLogger } from '../src/utils/logger';
 import type { WorkflowStep } from '../src/types/index';
