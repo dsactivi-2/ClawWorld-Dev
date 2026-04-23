@@ -1,5 +1,15 @@
 import nodemailer, { Transporter, SendMailOptions } from 'nodemailer';
 
+/** Escape user-supplied strings before embedding them in HTML templates */
+function escHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 export type EmailSeverity = 'info' | 'warning' | 'error' | 'critical';
 
 export interface SendEmailResult {
@@ -28,10 +38,11 @@ export class EmailTool {
 
     this.fromAddress = user;
 
+    const smtpPort = port ? parseInt(port, 10) : 587;
     this.transporter = nodemailer.createTransport({
       host,
-      port: port ? parseInt(port, 10) : 587,
-      secure: port === '465',
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
         user,
         pass: password,
@@ -92,22 +103,25 @@ export class EmailTool {
     };
     const color = colorMap[severity];
 
+    const safeSubject = escHtml(subject);
+    const safeDetails = escHtml(details).replace(/\n/g, '<br />');
+
     const htmlBody = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>${subject}</title>
+  <title>${safeSubject}</title>
 </head>
 <body style="font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 24px;">
   <div style="max-width: 600px; margin: 0 auto; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.12);">
     <div style="background: ${color}; padding: 16px 24px;">
       <h1 style="color: #fff; margin: 0; font-size: 18px;">
-        [${severity.toUpperCase()}] ${subject}
+        [${severity.toUpperCase()}] ${safeSubject}
       </h1>
     </div>
     <div style="padding: 24px;">
-      <p style="margin: 0 0 12px; color: #333; line-height: 1.6;">${details.replace(/\n/g, '<br />')}</p>
+      <p style="margin: 0 0 12px; color: #333; line-height: 1.6;">${safeDetails}</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 16px 0;" />
       <p style="font-size: 12px; color: #999; margin: 0;">
         Sent by OpenClaw Teams &bull; ${new Date().toISOString()}

@@ -179,7 +179,7 @@ export class MonitoringTool {
       clearTimeout(timeout);
 
       const responseTimeMs = Date.now() - start;
-      const healthy = response.status >= 200 && response.status < 400;
+      const healthy = response.status >= 200 && response.status < 300;
 
       return {
         url: serviceUrl,
