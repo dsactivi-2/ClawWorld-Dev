@@ -343,7 +343,7 @@
     db: 0,
     keyPrefix: "openclaw:",
     tls: {
-      enabled: true,
+      enabled: false,
       rejectUnauthorized: true,
     },
     persistence: {
@@ -386,7 +386,7 @@
     format: "json",
     file: {
       enabled: true,
-      directory: "/var/log/openclaw",
+      directory: "/app/logs",
       filename: "app-%DATE%.log",
       datePattern: "YYYY-MM-DD",
       maxSize: "100m",

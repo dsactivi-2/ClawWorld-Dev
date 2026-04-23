@@ -61,7 +61,7 @@ groups:
         expr: |
           up{job="openclaw-agents"} == 0
           OR
-          absent(openclaw_agent_heartbeat_timestamp_seconds{}) > 60
+          (time() - max(openclaw_agent_heartbeat_timestamp_seconds{})) > 60
         for: 1m
         labels:
           severity: critical

@@ -246,13 +246,13 @@ services:
     environment:
       discovery.type: single-node
       ES_JAVA_OPTS: "-Xms512m -Xmx1g"
-      xpack.security.enabled: "false"
+      xpack.security.enabled: "true"
       xpack.security.enrollment.enabled: "false"
       cluster.name: openclaw-logs
       node.name: openclaw-es-01
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:9300:9300"
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     networks:

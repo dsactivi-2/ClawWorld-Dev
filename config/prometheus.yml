@@ -54,7 +54,7 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets:
-          - "localhost:3000"
+          - "openclaw-gateway:3000"
         labels:
           service: "openclaw-gateway"
           component: "api"
@@ -78,7 +78,7 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets:
-          - "localhost:9187"
+          - "postgres-exporter:9187"
         labels:
           service: "postgres"
           component: "database"
@@ -98,7 +98,7 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets:
-          - "localhost:9121"
+          - "redis-exporter:9121"
         labels:
           service: "redis"
           component: "cache"
@@ -118,7 +118,7 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets:
-          - "localhost:9100"
+          - "node-exporter:9100"
         labels:
           service: "node"
           component: "host"
@@ -147,7 +147,7 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets:
-          - "localhost:3000"
+          - "openclaw-gateway:3000"
         labels:
           service: "openclaw-agents"
           component: "agents"
@@ -165,7 +165,7 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets:
-          - "localhost:9113"
+          - "nginx-exporter:9113"
         labels:
           service: "nginx"
           component: "proxy"
