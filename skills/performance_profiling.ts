@@ -131,9 +131,9 @@ export interface PerformanceReport {
 
 /** Cost per token in USD for common models */
 const MODEL_COST_PER_TOKEN: Record<string, number> = {
-  'claude-opus-4-5': 0.000_015,
-  'claude-sonnet-4-5': 0.000_003,
-  'claude-haiku-4-5': 0.000_000_25,
+  'claude-opus-4-6': 0.000_015,
+  'claude-sonnet-4-6': 0.000_003,
+  'claude-haiku-4-5-20251001': 0.000_000_25,
   default: 0.000_003,
 };
 

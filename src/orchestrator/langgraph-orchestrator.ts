@@ -35,8 +35,8 @@ const log = createLogger('LangGraphOrchestrator');
 // Model constants
 // ---------------------------------------------------------------------------
 
-const MODEL_BUILDER = 'claude-3-5-sonnet-20241022';
-const MODEL_SUPERVISOR = 'claude-3-5-sonnet-20241022';
+const MODEL_BUILDER = 'claude-sonnet-4-6';
+const MODEL_SUPERVISOR = 'claude-sonnet-4-6';
 
 // ---------------------------------------------------------------------------
 // Retry configuration
