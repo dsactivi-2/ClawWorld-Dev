@@ -32,8 +32,9 @@ NAMESPACE="${NAMESPACE:-openclaw-production}"
 POSTGRES_DB="${POSTGRES_DB:-openclaw_teams}"
 POSTGRES_USER="${POSTGRES_USER:-openclaw}"
 
-S3_BUCKET="${S3_BUCKET:-}"
+S3_BUCKET="${S3_BUCKET:-${BACKUP_BUCKET:-}}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
+AWS_ENDPOINT_URL="${AWS_ENDPOINT_URL:-}"
 S3_PREFIX="${S3_PREFIX:-backups}"
 
 LOCAL_BACKUP_DIR="${LOCAL_BACKUP_DIR:-/tmp/openclaw-backups}"
@@ -164,10 +165,14 @@ upload_to_s3() {
   local remote_name="$2"
   local s3_path="s3://${S3_BUCKET}/${S3_PREFIX}/${remote_name}"
 
+  # Build optional endpoint flag (used for Backblaze B2, Cloudflare R2, MinIO, etc.)
+  local endpoint_flag=()
+  [[ -n "${AWS_ENDPOINT_URL:-}" ]] && endpoint_flag=(--endpoint-url "${AWS_ENDPOINT_URL}")
+
   log_info "Uploading to ${s3_path}"
   aws s3 cp "${local_file}" "${s3_path}" \
     --region "${AWS_REGION}" \
-    --storage-class STANDARD_IA
+    "${endpoint_flag[@]}"
 
   log_success "Uploaded: ${s3_path}"
 }
@@ -179,11 +184,13 @@ verify_backups() {
   log_step "Verifying backup integrity"
 
   if use_s3 && [[ "${DRY_RUN}" != "true" ]]; then
+    local endpoint_flag=()
+    [[ -n "${AWS_ENDPOINT_URL:-}" ]] && endpoint_flag=(--endpoint-url "${AWS_ENDPOINT_URL}")
     for file in "${PG_BACKUP_FILE}" "${REDIS_BACKUP_FILE}"; do
       local s3_path="s3://${S3_BUCKET}/${S3_PREFIX}/${file}"
-      if aws s3 ls "${s3_path}" --region "${AWS_REGION}" &>/dev/null; then
+      if aws s3 ls "${s3_path}" --region "${AWS_REGION}" "${endpoint_flag[@]}" &>/dev/null; then
         local size
-        size=$(aws s3 ls "${s3_path}" --region "${AWS_REGION}" | awk '{print $3}')
+        size=$(aws s3 ls "${s3_path}" --region "${AWS_REGION}" "${endpoint_flag[@]}" | awk '{print $3}')
         if [[ "${size:-0}" -gt 0 ]]; then
           log_success "Verified: ${file} (${size} bytes)"
         else
