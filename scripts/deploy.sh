@@ -130,10 +130,11 @@ push_image() {
 apply_manifests() {
   log_step "Applying Kubernetes manifests"
 
+  # secret.yaml contains REPLACE_ME placeholders and must be pre-provisioned
+  # (via Sealed Secrets or External Secrets Operator) — never applied here.
   local manifest_order=(
     namespace.yaml
     configmap.yaml
-    secret.yaml
     statefulset-postgres.yaml
     statefulset-redis.yaml
     deployment.yaml
@@ -163,7 +164,57 @@ apply_manifests() {
 }
 
 # -----------------------------------------------------------------------------
-# Step 5 — Wait for rollout
+# Step 5 — Run database migrations
+# -----------------------------------------------------------------------------
+run_db_migrations() {
+  log_step "Running database migrations"
+
+  local migration_dir="${REPO_ROOT}/sql/migrations"
+
+  if [[ ! -d "${migration_dir}" ]]; then
+    log_warn "No migrations directory at ${migration_dir} — skipping"
+    return 0
+  fi
+
+  local migrations=()
+  while IFS= read -r -d '' f; do
+    migrations+=("$f")
+  done < <(find "${migration_dir}" -maxdepth 1 -name "*.sql" -print0 | sort -z)
+
+  if [[ ${#migrations[@]} -eq 0 ]]; then
+    log_warn "No *.sql files in ${migration_dir} — skipping"
+    return 0
+  fi
+
+  log_info "Found ${#migrations[@]} migration file(s)"
+
+  # Locate a running postgres pod in the target namespace
+  local pg_pod
+  pg_pod=$(kubectl get pod \
+    --namespace="${NAMESPACE}" \
+    -l app.kubernetes.io/name=postgres \
+    --field-selector=status.phase=Running \
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+
+  [[ -z "${pg_pod}" ]] && die "No running postgres pod found in namespace ${NAMESPACE}"
+  log_info "Using postgres pod: ${pg_pod}"
+
+  for migration in "${migrations[@]}"; do
+    local filename
+    filename="$(basename "${migration}")"
+    log_info "Applying migration: ${filename}"
+    # Copy file into pod, run it, then clean up
+    run kubectl cp "${migration}" "${NAMESPACE}/${pg_pod}:/tmp/${filename}"
+    run kubectl exec "${pg_pod}" --namespace="${NAMESPACE}" -- \
+      psql -U openclaw -d openclaw_teams -v ON_ERROR_STOP=1 -f "/tmp/${filename}"
+    run kubectl exec "${pg_pod}" --namespace="${NAMESPACE}" -- rm "/tmp/${filename}"
+  done
+
+  log_success "All migrations applied successfully"
+}
+
+# -----------------------------------------------------------------------------
+# Step 6 — Wait for rollout
 # -----------------------------------------------------------------------------
 wait_for_rollout() {
   log_step "Waiting for rollout to complete (timeout: ${ROLLOUT_TIMEOUT})"
@@ -176,7 +227,7 @@ wait_for_rollout() {
 }
 
 # -----------------------------------------------------------------------------
-# Step 6 — Health check
+# Step 7 — Health check
 # -----------------------------------------------------------------------------
 run_health_check() {
   log_step "Running post-deploy health check"
@@ -227,6 +278,7 @@ main() {
   build_image
   push_image
   apply_manifests
+  run_db_migrations
   wait_for_rollout
   run_health_check
 

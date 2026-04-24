@@ -54,7 +54,6 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-      - "9090:9090"
     env_file:
       - ../.env
     environment:
@@ -248,6 +247,7 @@ services:
       ES_JAVA_OPTS: "-Xms512m -Xmx1g"
       xpack.security.enabled: "true"
       xpack.security.enrollment.enabled: "false"
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
       cluster.name: openclaw-logs
       node.name: openclaw-es-01
     ports:
@@ -265,7 +265,7 @@ services:
         soft: 65536
         hard: 65536
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -u elastic:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

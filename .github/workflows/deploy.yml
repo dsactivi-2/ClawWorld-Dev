@@ -114,6 +114,24 @@ jobs:
       - name: Verify cluster connectivity
         run: kubectl cluster-info --request-timeout=10s
 
+      - name: Run database migrations (staging)
+        run: |
+          PG_POD=$(kubectl get pod \
+            --namespace="${{ env.STAGING_NAMESPACE }}" \
+            -l app.kubernetes.io/name=postgres \
+            --field-selector=status.phase=Running \
+            -o jsonpath='{.items[0].metadata.name}')
+          echo "Postgres pod: ${PG_POD}"
+          for migration in sql/migrations/*.sql; do
+            [[ -f "${migration}" ]] || continue
+            FILENAME="$(basename "${migration}")"
+            echo "Applying migration: ${FILENAME}"
+            kubectl cp "${migration}" "${{ env.STAGING_NAMESPACE }}/${PG_POD}:/tmp/${FILENAME}"
+            kubectl exec "${PG_POD}" --namespace="${{ env.STAGING_NAMESPACE }}" -- \
+              psql -U openclaw -d openclaw_teams -v ON_ERROR_STOP=1 -f "/tmp/${FILENAME}"
+            kubectl exec "${PG_POD}" --namespace="${{ env.STAGING_NAMESPACE }}" -- rm "/tmp/${FILENAME}"
+          done
+
       - name: Update staging image
         run: |
           kubectl set image deployment/${{ env.DEPLOYMENT }} \
@@ -189,6 +207,24 @@ jobs:
             kubernetes/networkpolicy.yaml; do
             echo "Applying ${manifest}..."
             kubectl apply -f "${manifest}" --namespace="${{ env.NAMESPACE }}"
+          done
+
+      - name: Run database migrations (production)
+        run: |
+          PG_POD=$(kubectl get pod \
+            --namespace="${{ env.NAMESPACE }}" \
+            -l app.kubernetes.io/name=postgres \
+            --field-selector=status.phase=Running \
+            -o jsonpath='{.items[0].metadata.name}')
+          echo "Postgres pod: ${PG_POD}"
+          for migration in sql/migrations/*.sql; do
+            [[ -f "${migration}" ]] || continue
+            FILENAME="$(basename "${migration}")"
+            echo "Applying migration: ${FILENAME}"
+            kubectl cp "${migration}" "${{ env.NAMESPACE }}/${PG_POD}:/tmp/${FILENAME}"
+            kubectl exec "${PG_POD}" --namespace="${{ env.NAMESPACE }}" -- \
+              psql -U openclaw -d openclaw_teams -v ON_ERROR_STOP=1 -f "/tmp/${FILENAME}"
+            kubectl exec "${PG_POD}" --namespace="${{ env.NAMESPACE }}" -- rm "/tmp/${FILENAME}"
           done
 
       - name: Update image
