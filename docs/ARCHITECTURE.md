@@ -12,7 +12,7 @@ OpenClaw Teams is a hierarchical multi-agent build platform. It accepts a natura
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         BUILDER LAYER                                │
 │                                                                       │
-│  ClawWorld Builder (claude-opus-4-6)                                 │
+│  ClawWorld Builder (claude-sonnet-4-6)                               │
 │  "Top-level orchestrator. Receives user intent, drives the           │
 │   LangGraph pipeline, aggregates final artifacts."                   │
 └──────────────────────────────┬──────────────────────────────────────┘
@@ -22,7 +22,7 @@ OpenClaw Teams is a hierarchical multi-agent build platform. It accepts a natura
    ┌──────────▼───────┐ ┌──────▼──────┐ ┌──────▼──────────┐
    │ Agent Builder    │ │Skill        │ │Routing Optimizer│
    │ Supervisor       │ │Optimizer    │ │Supervisor       │
-   │ (sonnet-4-6)     │ │Supervisor   │ │(sonnet-4-6)     │
+   │ (haiku†)         │ │Supervisor   │ │(sonnet‡)        │
    └──────┬───────────┘ └──────┬──────┘ └──────┬──────────┘
           │                   │               │
    ┌──────▼──────┐     ┌──────▼──────┐ ┌──────▼──────┐
@@ -38,12 +38,34 @@ OpenClaw Teams is a hierarchical multi-agent build platform. It accepts a natura
               │
    ┌──────────▼─────────────────────────┐
    │  TEST VALIDATOR SUPERVISOR          │
-   │  (claude-sonnet-4-6)                │
+   │  (claude-haiku-4-5-20251001)        │
    │                                     │
    │  Workers: unit-tester               │
    │           integration-tester        │
    └─────────────────────────────────────┘
 ```
+
+> † `claude-haiku-4-5-20251001` &nbsp; ‡ `claude-sonnet-4-6`
+
+### Model Assignments
+
+| Agent | ID | Exact Model | Rationale |
+|---|---|---|---|
+| ClawWorld Builder | `clawworld-builder` | `claude-sonnet-4-6` | Top-level orchestration; sonnet sufficient, opus unnecessary |
+| Agent Builder Supervisor | `agent-builder-team` | `claude-haiku-4-5-20251001` | Structured coordination and progress tracking |
+| Test Validator Supervisor | `test-validator-team` | `claude-haiku-4-5-20251001` | Rule-based test decisions with defined criteria |
+| Routing Optimizer Supervisor | `routing-optimizer-team` | `claude-sonnet-4-6` | Routing rule design requires genuine reasoning |
+| Skill Optimizer Supervisor | `skill-optimizer-team` | `claude-sonnet-4-6` | Optimization planning and gap analysis require reasoning |
+| Artifact Manager | `artifact-manager` | `claude-haiku-4-5-20251001` | Pure CRUD/versioning service, no reasoning required |
+| Agent Creator | `agent-creator` | `claude-haiku-4-5-20251001` | Template-driven prose file generation |
+| Binding Config | `binding-config` | `claude-haiku-4-5-20251001` | Structured configuration authoring |
+| Integration Tester | `integration-tester` | `claude-haiku-4-5-20251001` | Structured test scenario execution |
+| Routing Tester | `routing-tester` | `claude-haiku-4-5-20251001` | Rule simulation with defined pass/fail criteria |
+| Skill Analyzer | `skill-analyzer` | `claude-haiku-4-5-20251001` | Pattern analysis over structured skill data |
+| Unit Tester | `unit-tester` | `claude-haiku-4-5-20251001` | Mechanical field/structure validation |
+| Conflict Resolver | `conflict-resolver` | `claude-haiku-4-5-20251001` | Categorization and patch generation follow defined rules |
+| Skill Validator | `skill-validator` | `claude-haiku-4-5-20251001` | Schema and scope validation |
+| Health Monitor | `health-monitor` | `claude-haiku-4-5-20251001` | Monitoring checks and threshold comparisons |
 
 ---
 
@@ -67,9 +89,9 @@ flowchart LR
 | Node | Model | Responsibility |
 |------|-------|----------------|
 | `analyze_requirements` | claude-sonnet-4-6 | Parses free-text user input into a structured requirements JSON |
-| `plan_architecture` | claude-opus-4-6 | Designs agent topology and workflow definitions |
+| `plan_architecture` | claude-sonnet-4-6 | Designs agent topology and workflow definitions |
 | `spawn_builder_teams` | — (deterministic) | Groups planned agents into builder teams of up to 3 |
-| `build_agents` | claude-opus-4-6 | Generates TypeScript implementations for each agent |
+| `build_agents` | claude-sonnet-4-6 | Generates TypeScript implementations for each agent |
 | `validate_and_test` | claude-sonnet-4-6 | QA review of build summary; emits verdict: deploy / fix / abort |
 | `deploy_system` | — (deterministic) | Assembles FinalPlan and marks workflow deployment-ready |
 
@@ -138,18 +160,18 @@ Joi validation (400 if invalid)
         ▼
 LangGraphOrchestrator.execute(userInput, stateKey)
         │
-        ├── analyzeRequirements ──► callClaude(sonnet, systemPrompt, userInput)
+        ├── analyzeRequirements ──► callClaude(claude-sonnet-4-6, systemPrompt, userInput)
         │         └── returns structured requirements JSON
         │
-        ├── planArchitecture ──► callClaude(opus, systemPrompt, requirements)
+        ├── planArchitecture ──► callClaude(claude-sonnet-4-6, systemPrompt, requirements)
         │         └── returns agent configs + workflow definitions
         │
         ├── spawnBuilderTeams ──► deterministic grouping into TeamConfig[]
         │
-        ├── buildAgents ──► parallel callClaude(opus) per agent (concurrency=2)
+        ├── buildAgents ──► parallel callClaude(claude-sonnet-4-6) per agent (concurrency=2)
         │         └── returns TypeScript artifacts
         │
-        ├── validateAndTest ──► callClaude(sonnet, QA prompt, build summary)
+        ├── validateAndTest ──► callClaude(claude-sonnet-4-6, QA prompt, build summary)
         │         └── verdict: deploy | fix | abort
         │         └── fix: loops back to buildAgents (once)
         │

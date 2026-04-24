@@ -48,16 +48,17 @@ A production-grade multi-agent build system powered by Anthropic Claude and Lang
                ┌────────────────────────┼────────────────────────┐
                │                        │                         │
    ┌───────────▼──────────┐  ┌──────────▼──────────┐  ┌─────────▼─────────┐
-   │   Supervisor Teams    │  │  GraphMemoryManager  │  │ TeamSpawningSkill  │
-   │  claude-sonnet-4-6   │  │    PostgreSQL JSONB   │  │  Dynamic scaling   │
-   └──────────┬───────────┘  └─────────────────────┘  └───────────────────┘
+   │   Supervisor Teams                   │  │  GraphMemoryManager  │  │ TeamSpawningSkill  │
+   │  claude-sonnet-4-6 (design agents)  │  │    PostgreSQL JSONB   │  │  Dynamic scaling   │
+   │  claude-haiku-4-5-20251001 (coord)  │  │                      │  │                    │
+   └──────────┬──────────────────────────┘  └─────────────────────┘  └───────────────────┘
               │
-   ┌──────────▼───────────────────────────────────────────┐
-   │  Worker Agents (claude-opus-4-6 / claude-sonnet-4-6) │
-   │  agent-creator · skill-validator · skill-analyzer    │
-   │  conflict-resolver · routing-tester · binding-config │
-   │  unit-tester · integration-tester                    │
-   └──────────────────────────────────────────────────────┘
+   ┌──────────▼─────────────────────────────────────────────────┐
+   │  Worker Agents (claude-haiku-4-5-20251001)                  │
+   │  agent-creator · skill-validator · skill-analyzer          │
+   │  conflict-resolver · routing-tester · binding-config       │
+   │  unit-tester · integration-tester · health-monitor         │
+   └────────────────────────────────────────────────────────────┘
 ```
 
 ---
