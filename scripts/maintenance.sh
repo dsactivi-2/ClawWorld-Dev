@@ -65,7 +65,18 @@ enable_maintenance() {
   log_info "Waiting ${DRAIN_TIMEOUT}s for connections to drain..."
   sleep "${DRAIN_TIMEOUT}"
 
-  log_info "Scaling down ${DEPLOYMENT}"
+  # Capture current replica count before scaling to 0 so disable can restore it
+  local current_replicas
+  current_replicas=$(kubectl get deployment "${DEPLOYMENT}" \
+    --namespace="${NAMESPACE}" \
+    -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "2")
+  current_replicas="${current_replicas:-2}"
+  kubectl annotate deployment "${DEPLOYMENT}" \
+    --namespace="${NAMESPACE}" \
+    --overwrite \
+    "openclaw.io/pre-maintenance-replicas=${current_replicas}"
+
+  log_info "Scaling down ${DEPLOYMENT} (was ${current_replicas} replicas)"
   kubectl scale deployment "${DEPLOYMENT}" \
     --namespace="${NAMESPACE}" \
     --replicas=0
@@ -93,11 +104,17 @@ disable_maintenance() {
     "nginx.ingress.kubernetes.io/default-backend-" \
     "${MAINTENANCE_ANNOTATION}-" 2>/dev/null || true
 
-  # 2 — Scale gateway back up
-  log_info "Scaling up ${DEPLOYMENT} to 2 replicas"
+  # 2 — Scale gateway back up to pre-maintenance replica count
+  local target_replicas
+  target_replicas=$(kubectl get deployment "${DEPLOYMENT}" \
+    --namespace="${NAMESPACE}" \
+    -o jsonpath='{.metadata.annotations.openclaw\.io/pre-maintenance-replicas}' 2>/dev/null || echo "2")
+  target_replicas="${target_replicas:-2}"
+
+  log_info "Scaling up ${DEPLOYMENT} to ${target_replicas} replicas (pre-maintenance count)"
   kubectl scale deployment "${DEPLOYMENT}" \
     --namespace="${NAMESPACE}" \
-    --replicas=2
+    --replicas="${target_replicas}"
 
   # 3 — Wait for pods to be ready
   log_info "Waiting for deployment to be ready..."

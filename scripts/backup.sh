@@ -78,7 +78,7 @@ backup_postgres() {
     kubectl exec postgres-0 --namespace="${NAMESPACE}" -- \
       pg_dump -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
       --format=plain --no-password \
-      2>/dev/null | gzip -9 > "${tmp_file}"
+      | gzip -9 > "${tmp_file}"
 
     local size
     size=$(du -sh "${tmp_file}" | cut -f1)
@@ -111,14 +111,16 @@ backup_redis() {
   if [[ "${DRY_RUN}" != "true" ]]; then
     log_info "Triggering BGSAVE on redis-0"
     kubectl exec redis-0 --namespace="${NAMESPACE}" -- \
-      sh -c 'redis-cli -a "${REDIS_PASSWORD:-}" BGSAVE' 2>/dev/null
+      redis-cli -a "${REDIS_PASSWORD:-}" BGSAVE 2>/dev/null
 
     # Wait for BGSAVE to complete
     local retries=0
     while [[ ${retries} -lt 30 ]]; do
       local status
       status=$(kubectl exec redis-0 --namespace="${NAMESPACE}" -- \
-        sh -c 'redis-cli -a "${REDIS_PASSWORD:-}" LASTSAVE' 2>/dev/null || echo "0")
+        redis-cli -a "${REDIS_PASSWORD:-}" LASTSAVE 2>/dev/null || echo "0")
+      # Guard against non-numeric status (e.g. auth error output)
+      if ! [[ "${status}" =~ ^[0-9]+$ ]]; then status=0; fi
       local last_save_age=$(( $(date +%s) - status ))
       if [[ ${last_save_age} -lt 30 ]]; then
         break
