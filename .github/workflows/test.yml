@@ -53,7 +53,7 @@ jobs:
       DATABASE_URL: postgresql://openclaw:testpassword@localhost:5432/openclaw_teams_test
       REDIS_URL: redis://localhost:6379/0
       JWT_SECRET: test-jwt-secret-that-is-long-enough-for-testing-purposes
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST || 'sk-ant-test' }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
 
     steps:
       - name: Checkout

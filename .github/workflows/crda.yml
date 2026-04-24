@@ -62,9 +62,11 @@ on:
   # push:
   #   branches: [ "main" ]
 
-  # pull_request_target is used to securely share secret to the PR's workflow run.
-  # For more info visit: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request_target
-  pull_request_target:
+  # SECURITY: pull_request_target was removed — it runs in the base repo's context with
+  # access to secrets, so a fork PR that modifies workflow files becomes a pwn-request
+  # attack (arbitrary code execution with repo secrets). Use pull_request instead;
+  # CRDA_KEY / SNYK_TOKEN will simply be empty for fork PRs, which is acceptable.
+  pull_request:
     branches: [ "main" ]
     types: [ assigned, opened, synchronize, reopened, labeled, edited ]
 
