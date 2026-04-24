@@ -799,6 +799,16 @@ COMMENT ON FUNCTION verify_backup_integrity IS
 -- GRANT permissions
 -- ============================================================
 
+-- Ensure the application role exists (idempotent; CI creates the DB user as
+-- "openclaw" but the app role may not yet exist in a fresh test database).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'openclaw_app') THEN
+    CREATE ROLE openclaw_app;
+  END IF;
+END
+$$;
+
 GRANT SELECT, INSERT, UPDATE ON backup_jobs                    TO openclaw_app;
 GRANT SELECT, INSERT, UPDATE ON restore_jobs                   TO openclaw_app;
 GRANT SELECT, INSERT, UPDATE ON _backup_agent_state_snapshot   TO openclaw_app;

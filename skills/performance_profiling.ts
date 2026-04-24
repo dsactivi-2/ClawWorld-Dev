@@ -196,7 +196,6 @@ let agentTokensUsed: promClient.Counter<string>;
 let agentCostUsd: promClient.Counter<string>;
 let agentCallErrors: promClient.Counter<string>;
 let workflowDuration: promClient.Histogram<string>;
-let _activeWorkflows: promClient.Gauge<string>;
 
 function ensureMetrics(): void {
   if (metricsInitialised) return;
@@ -234,11 +233,6 @@ function ensureMetrics(): void {
       help: 'End-to-end workflow execution time in milliseconds',
       labelNames: ['workflow_id'],
       buckets: [100, 500, 1000, 5000, 15000, 60000, 300000],
-    });
-
-    activeWorkflows = new promClient.Gauge({
-      name: 'openclaw_active_workflows',
-      help: 'Number of currently executing workflows',
     });
 
     promClient.collectDefaultMetrics({ prefix: 'openclaw_' });
@@ -724,75 +718,3 @@ export class PerformanceProfilingSkill {
     logger.debug('Profiles reset', { agentId });
   }
 }
-
-// ---------------------------------------------------------------------------
-// Unit test stubs
-// ---------------------------------------------------------------------------
-
-/*
-describe('PerformanceProfilingSkill', () => {
-  let profiler: PerformanceProfilingSkill;
-
-  beforeEach(() => {
-    profiler = new PerformanceProfilingSkill();
-  });
-
-  describe('profileAgentCall', () => {
-    it('should return the result of the wrapped function');
-    it('should record durationMs in the returned profile');
-    it('should mark success=false and re-throw when the function throws');
-    it('should extract token usage from Anthropic SDK response shapes');
-    it('should record the profile in internal callProfiles storage');
-    it('should throw ProfilingValidationError when agentId is empty');
-    it('should increment Prometheus error counter on failure');
-  });
-
-  describe('profileWorkflow', () => {
-    it('should sum step durations, tokens, and costs correctly');
-    it('should derive startedAt from the earliest step');
-    it('should derive completedAt from the latest step');
-    it('should throw ProfilingValidationError when steps is empty');
-    it('should record a Prometheus histogram observation for the workflow');
-  });
-
-  describe('detectBottlenecks', () => {
-    it('should return the N slowest steps sorted by duration descending');
-    it('should include a recommendation for each bottleneck');
-    it('should compute percentageOfTotal correctly');
-    it('should default topN to 3');
-    it('should throw ProfilingValidationError for invalid profileData');
-  });
-
-  describe('generateFlameGraph', () => {
-    it('should produce a root node whose value equals totalDurationMs');
-    it('should group children by agentId');
-    it('should nest steps under their respective agent nodes');
-    it('should throw ProfilingValidationError for invalid profileData');
-  });
-
-  describe('trackTokenUsage', () => {
-    it('should sum input and output tokens for the specified month');
-    it('should return zero counts when no calls have been recorded');
-    it('should ignore calls from other months');
-    it('should compute avgTokensPerCall correctly');
-    it('should throw ProfilingValidationError for an invalid month format');
-  });
-
-  describe('trackCostUsage', () => {
-    it('should compute totalCostUsd as sum of call costs for the month');
-    it('should set overBudget=true when cost exceeds budgetUsd');
-    it('should compute utilizationPercent correctly');
-    it('should default budgetUsd to 100');
-    it('should throw ProfilingValidationError for an invalid month format');
-  });
-
-  describe('generatePerformanceReport', () => {
-    it('should compute successRate from call history');
-    it('should compute p50, p95, p99 latency percentiles');
-    it('should include actionable recommendations when error rate is high');
-    it('should include a cost recommendation when totalCostUsd > 50');
-    it('should return an empty bottlenecks array when no calls have been recorded');
-    it('should throw ProfilingValidationError when agentId is empty');
-  });
-});
-*/

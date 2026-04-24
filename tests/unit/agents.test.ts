@@ -57,6 +57,7 @@ jest.mock('@langchain/langgraph', () => {
   return {
     StateGraph,
     END: '__end__',
+    START: '__start__',
     MemorySaver: jest.fn().mockImplementation(() => ({})),
     _mockInvoke: mockInvoke,
   };
