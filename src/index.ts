@@ -10,6 +10,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import { collectDefaultMetrics, register } from 'prom-client';
 import Redis from 'ioredis';
 
@@ -74,6 +75,19 @@ async function createApp(): Promise<{
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
       credentials: true,
+    }),
+  );
+
+  // -------------------------------------------------------------------------
+  // Rate limiting
+  // -------------------------------------------------------------------------
+  app.use(
+    rateLimit({
+      windowMs: 60_000,                 // 1 minute window
+      max: parseInt(process.env['RATE_LIMIT_MAX'] ?? '100', 10),
+      standardHeaders: true,            // Return rate limit info in RateLimit-* headers
+      legacyHeaders: false,
+      message: { error: 'Too many requests — please slow down.' },
     }),
   );
 
@@ -245,7 +259,6 @@ async function start(): Promise<void> {
       env: process.env['NODE_ENV'] ?? 'development',
       pid: process.pid,
     });
-    console.log(`OpenClaw Teams started on port ${PORT}`);
   });
 
   // -------------------------------------------------------------------------

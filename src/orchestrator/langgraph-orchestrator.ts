@@ -10,8 +10,8 @@
  *   6. deploySystem          — assemble final plan and mark deployment-ready
  *
  * Models used:
- *   - claude-3-5-sonnet  → heavyweight builder reasoning
- *   - claude-3-5-sonnet  → supervisor / validation reasoning
+ *   - claude-sonnet-4-6          → builder reasoning (planArchitecture, buildAgents)
+ *   - claude-sonnet-4-6          → supervisor / validation reasoning (analyzeRequirements, validateAndTest)
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -222,7 +222,7 @@ Respond ONLY with valid JSON matching this schema:
     {
       "id": string,
       "name": string,
-      "model": "claude-3-5-sonnet",
+      "model": "claude-sonnet-4-6" | "claude-haiku-4-5-20251001",
       "role": string,
       "responsibilities": string[],
       "tools": string[]
