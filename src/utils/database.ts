@@ -3,7 +3,7 @@
  * Singleton pool, generic query wrapper, transaction helper and health-check.
  */
 
-import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
 import { createLogger } from './logger';
 
 const log = createLogger('Database');
@@ -19,7 +19,9 @@ type PoolConfig = ConstructorParameters<typeof Pool>[0] & { max?: number };
 let _poolConfig: PoolConfig | null = null;
 
 function buildConnectionConfig(): PoolConfig {
-  if (_poolConfig) return _poolConfig;
+  if (_poolConfig) {
+    return _poolConfig;
+  }
 
   const url = process.env['DATABASE_URL'];
   const isProduction = process.env['NODE_ENV'] === 'production';
@@ -38,9 +40,7 @@ function buildConnectionConfig(): PoolConfig {
 
   const password = process.env['DB_PASSWORD'];
   if (!password) {
-    throw new Error(
-      'DB_PASSWORD environment variable is required (or set DATABASE_URL)',
-    );
+    throw new Error('DB_PASSWORD environment variable is required (or set DATABASE_URL)');
   }
 
   _poolConfig = {
@@ -144,9 +144,7 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
  *   return await client.query('SELECT ...');
  * });
  */
-export async function transaction<T>(
-  callback: (client: PoolClient) => Promise<T>,
-): Promise<T> {
+export async function transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
   try {
     await client.query('BEGIN');

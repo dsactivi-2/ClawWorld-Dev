@@ -10,7 +10,7 @@ import './instrument';
 
 import 'dotenv/config';
 import * as Sentry from '@sentry/node';
-import express, { Application, Request, Response, NextFunction } from 'express';
+import express, { type Application, type Request, type Response, type NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -72,7 +72,9 @@ async function createApp(): Promise<{
       origin:
         allowedOrigins.length > 0
           ? (origin, cb) => {
-              if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+              if (!origin || allowedOrigins.includes(origin)) {
+                return cb(null, true);
+              }
               cb(new Error(`CORS policy does not allow origin: ${origin}`));
             }
           : true,
@@ -87,9 +89,9 @@ async function createApp(): Promise<{
   // -------------------------------------------------------------------------
   app.use(
     rateLimit({
-      windowMs: 60_000,                 // 1 minute window
+      windowMs: 60_000, // 1 minute window
       max: parseInt(process.env['RATE_LIMIT_MAX'] ?? '100', 10),
-      standardHeaders: true,            // Return rate limit info in RateLimit-* headers
+      standardHeaders: true, // Return rate limit info in RateLimit-* headers
       legacyHeaders: false,
       message: { error: 'Too many requests — please slow down.' },
     }),
@@ -156,13 +158,14 @@ async function createApp(): Promise<{
   // -------------------------------------------------------------------------
   const startTime = Date.now();
 
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.get('/health', async (_req: Request, res: Response) => {
     const dbHealth = await dbHealthCheck();
     const redisHealth: ComponentHealth = redisClient
       ? await (async () => {
           try {
             const t = Date.now();
-            await redisClient!.ping();
+            await redisClient.ping();
             return { status: 'healthy' as const, latencyMs: Date.now() - t };
           } catch (e) {
             return {
@@ -180,8 +183,8 @@ async function createApp(): Promise<{
     const overallStatus: HealthStatus['status'] = allHealthy
       ? 'healthy'
       : dbHealth.status === 'unhealthy'
-      ? 'unhealthy'
-      : 'degraded';
+        ? 'unhealthy'
+        : 'degraded';
 
     const health: HealthStatus = {
       status: overallStatus,
@@ -205,6 +208,7 @@ async function createApp(): Promise<{
   // -------------------------------------------------------------------------
   // Prometheus metrics endpoint
   // -------------------------------------------------------------------------
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   app.get('/metrics', async (_req: Request, res: Response) => {
     try {
       res.set('Content-Type', register.contentType);
@@ -218,18 +222,9 @@ async function createApp(): Promise<{
   // -------------------------------------------------------------------------
   // API routes
   // -------------------------------------------------------------------------
-  app.use(
-    '/api/workflows',
-    createWorkflowRouter({ orchestrator, memoryManager }),
-  );
-  app.use(
-    '/api/agents',
-    createAgentsRouter({ teamSkill }),
-  );
-  app.use(
-    '/api/teams',
-    createTeamsRouter({ teamSkill }),
-  );
+  app.use('/api/workflows', createWorkflowRouter({ orchestrator, memoryManager }));
+  app.use('/api/agents', createAgentsRouter({ teamSkill }));
+  app.use('/api/teams', createTeamsRouter({ teamSkill }));
 
   // -------------------------------------------------------------------------
   // Sentry error handler — must be AFTER all routes, BEFORE other error middleware
@@ -278,9 +273,11 @@ async function start(): Promise<void> {
   // -------------------------------------------------------------------------
   // Graceful shutdown
   // -------------------------------------------------------------------------
+  // eslint-disable-next-line @typescript-eslint/require-await
   async function shutdown(signal: string): Promise<void> {
     log.info(`${signal} received — shutting down gracefully`);
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     server.close(async () => {
       log.info('HTTP server closed');
 

@@ -1,4 +1,4 @@
-import { WebClient, KnownBlock, Block } from '@slack/web-api';
+import { WebClient, type KnownBlock, type Block } from '@slack/web-api';
 
 export type SlackSeverity = 'info' | 'warning' | 'error' | 'critical';
 
@@ -46,7 +46,7 @@ export class SlackIntegrationTool {
   async sendMessage(
     channel: string,
     text: string,
-    blocks?: (KnownBlock | Block)[]
+    blocks?: Array<KnownBlock | Block>,
   ): Promise<SlackMessageResult> {
     try {
       const response = await this.client.chat.postMessage({
@@ -61,7 +61,7 @@ export class SlackIntegrationTool {
 
       return {
         ts: response.ts,
-        channel: (response.channel as string | undefined) ?? channel,
+        channel: response.channel ?? channel,
         ok: true,
       };
     } catch (error) {
@@ -79,7 +79,7 @@ export class SlackIntegrationTool {
     severity: SlackSeverity,
     title: string,
     message: string,
-    metadata: SlackAlertMetadata
+    metadata: SlackAlertMetadata,
   ): Promise<SlackMessageResult> {
     const severityEmoji: Record<SlackSeverity, string> = {
       info: ':information_source:',
@@ -144,11 +144,7 @@ export class SlackIntegrationTool {
   /**
    * Reply in a thread (or start one if ts is the parent message timestamp).
    */
-  async createThread(
-    channel: string,
-    ts: string,
-    reply: string
-  ): Promise<SlackThreadResult> {
+  async createThread(channel: string, ts: string, reply: string): Promise<SlackThreadResult> {
     try {
       const response = await this.client.chat.postMessage({
         channel,
@@ -163,25 +159,19 @@ export class SlackIntegrationTool {
       return {
         ts: response.ts,
         threadTs: ts,
-        channel: (response.channel as string | undefined) ?? channel,
+        channel: response.channel ?? channel,
         ok: true,
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `createThread in channel "${channel}" (thread_ts: ${ts}) failed: ${msg}`
-      );
+      throw new Error(`createThread in channel "${channel}" (thread_ts: ${ts}) failed: ${msg}`);
     }
   }
 
   /**
    * Upload a file or code snippet to a Slack channel.
    */
-  async uploadFile(
-    channel: string,
-    filename: string,
-    content: string
-  ): Promise<SlackUploadResult> {
+  async uploadFile(channel: string, filename: string, content: string): Promise<SlackUploadResult> {
     try {
       // Use the v2 upload API (files.getUploadURLExternal + files.completeUploadExternal)
       // Fall back to legacy files.upload for compatibility with older workspace plans.
@@ -217,11 +207,7 @@ export class SlackIntegrationTool {
   /**
    * Edit (update) an existing Slack message identified by its channel + timestamp.
    */
-  async updateMessage(
-    channel: string,
-    ts: string,
-    newText: string
-  ): Promise<SlackMessageResult> {
+  async updateMessage(channel: string, ts: string, newText: string): Promise<SlackMessageResult> {
     try {
       const response = await this.client.chat.update({
         channel,
@@ -234,15 +220,13 @@ export class SlackIntegrationTool {
       }
 
       return {
-        ts: (response.ts as string | undefined) ?? ts,
-        channel: (response.channel as string | undefined) ?? channel,
+        ts: response.ts ?? ts,
+        channel: response.channel ?? channel,
         ok: true,
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `updateMessage in channel "${channel}" (ts: ${ts}) failed: ${msg}`
-      );
+      throw new Error(`updateMessage in channel "${channel}" (ts: ${ts}) failed: ${msg}`);
     }
   }
 }

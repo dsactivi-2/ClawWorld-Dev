@@ -104,7 +104,10 @@ const suggestImprovementsSchema = Joi.object({
 // ---------------------------------------------------------------------------
 
 export class CodeReviewError extends Error {
-  constructor(message: string, public override readonly cause?: Error) {
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+  ) {
     super(message);
     this.name = 'CodeReviewError';
   }
@@ -130,7 +133,8 @@ interface SecretPattern {
 const SECRET_PATTERNS: SecretPattern[] = [
   {
     rule: 'hardcoded-api-key',
-    pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*['"]([A-Za-z0-9_\-]{20,})['"]|\b([A-Za-z0-9]{32,})\b(?=.*(?:key|secret|token))/gi,
+    pattern:
+      /(?:api[_-]?key|apikey)\s*[:=]\s*['"]([A-Za-z0-9_-]{20,})['"]|\b([A-Za-z0-9]{32,})\b(?=.*(?:key|secret|token))/gi,
     description: 'Possible hardcoded API key detected',
   },
   {
@@ -286,9 +290,15 @@ export class CodeReviewSkill {
    * @throws {CodeReviewValidationError} on bad input
    * @throws {CodeReviewError} on file read failure
    */
-  async reviewCode(filePath: string, language: ReviewLanguage = 'unknown'): Promise<CodeReviewResult> {
+  async reviewCode(
+    filePath: string,
+    language: ReviewLanguage = 'unknown',
+  ): Promise<CodeReviewResult> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { error, value } = reviewCodeSchema.validate({ filePath, language });
-    if (error) throw new CodeReviewValidationError(error.message);
+    if (error) {
+      throw new CodeReviewValidationError(error.message);
+    }
 
     const { filePath: resolvedPath, language: resolvedLang } = value as {
       filePath: string;
@@ -337,7 +347,11 @@ export class CodeReviewSkill {
       reviewedAt: new Date().toISOString(),
     };
 
-    logger.info('File review complete', { file: resolvedPath, score, totalFindings: findings.length });
+    logger.info('File review complete', {
+      file: resolvedPath,
+      score,
+      totalFindings: findings.length,
+    });
     return result;
   }
 
@@ -441,7 +455,9 @@ export class CodeReviewSkill {
    */
   checkCodeStyle(code: string, rules: StyleRules): ReviewFinding[] {
     const { error } = checkStyleSchema.validate({ code, rules });
-    if (error) throw new CodeReviewValidationError(error.message);
+    if (error) {
+      throw new CodeReviewValidationError(error.message);
+    }
 
     return this._runStyleChecks(code, rules, 'inline');
   }
@@ -455,7 +471,9 @@ export class CodeReviewSkill {
    */
   detectSecurityIssues(code: string): ReviewFinding[] {
     const { error } = detectSecretsSchema.validate({ code });
-    if (error) throw new CodeReviewValidationError(error.message);
+    if (error) {
+      throw new CodeReviewValidationError(error.message);
+    }
 
     return this._runSecretScan(code, 'inline');
   }
@@ -473,7 +491,9 @@ export class CodeReviewSkill {
     language: ReviewLanguage = 'unknown',
   ): Promise<ReviewFinding[]> {
     const { error } = suggestImprovementsSchema.validate({ code, language });
-    if (error) throw new CodeReviewValidationError(error.message);
+    if (error) {
+      throw new CodeReviewValidationError(error.message);
+    }
 
     logger.debug('Requesting improvement suggestions from Claude Haiku', { language });
 
@@ -499,8 +519,7 @@ Return ONLY the JSON array, no additional text.`;
         messages: [{ role: 'user', content: prompt }],
       });
 
-      const raw =
-        response.content[0]?.type === 'text' ? response.content[0].text.trim() : '[]';
+      const raw = response.content[0]?.type === 'text' ? response.content[0].text.trim() : '[]';
 
       let parsed: Array<{
         line?: number | null;
@@ -510,6 +529,7 @@ Return ONLY the JSON array, no additional text.`;
       }>;
 
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         parsed = JSON.parse(raw);
       } catch {
         logger.warn('Claude Haiku returned non-JSON, skipping suggestions', { raw });
@@ -522,7 +542,7 @@ Return ONLY the JSON array, no additional text.`;
         line: item.line ?? null,
         rule: item.rule ?? 'ai-suggestion',
         message: item.message ?? '',
-        ...(item.suggestion !== undefined ? { suggestion: item.suggestion as string } : {}),
+        ...(item.suggestion !== undefined ? { suggestion: item.suggestion } : {}),
       }));
     } catch (err) {
       throw new CodeReviewError(
@@ -625,11 +645,7 @@ Return ONLY the JSON array, no additional text.`;
   // -------------------------------------------------------------------------
 
   /** Applies regex-based style rules line by line */
-  private _runStyleChecks(
-    code: string,
-    rules: StyleRules,
-    file: string,
-  ): ReviewFinding[] {
+  private _runStyleChecks(code: string, rules: StyleRules, file: string): ReviewFinding[] {
     const findings: ReviewFinding[] = [];
     const lines = code.split('\n');
 

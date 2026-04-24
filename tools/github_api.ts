@@ -71,7 +71,7 @@ export class GitHubApiTool {
     repo: string,
     title: string,
     body: string,
-    labels: string[] = []
+    labels: string[] = [],
   ): Promise<GitHubIssue> {
     const { owner, name } = this.parseRepo(repo);
 
@@ -90,7 +90,7 @@ export class GitHubApiTool {
         body: data.body ?? null,
         url: data.html_url,
         state: data.state,
-        labels: data.labels.map(l => (typeof l === 'string' ? l : (l.name ?? ''))),
+        labels: data.labels.map((l) => (typeof l === 'string' ? l : (l.name ?? ''))),
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       };
@@ -108,7 +108,7 @@ export class GitHubApiTool {
     title: string,
     body: string,
     head: string,
-    base: string
+    base: string,
   ): Promise<GitHubPullRequest> {
     const { owner, name } = this.parseRepo(repo);
 
@@ -144,7 +144,7 @@ export class GitHubApiTool {
   async mergePullRequest(
     repo: string,
     prNumber: number,
-    mergeMethod: MergeMethod = 'merge'
+    mergeMethod: MergeMethod = 'merge',
   ): Promise<GitHubMergeResult> {
     const { owner, name } = this.parseRepo(repo);
 
@@ -211,13 +211,13 @@ export class GitHubApiTool {
         per_page: 100,
       });
 
-      return data.map(issue => ({
+      return data.map((issue) => ({
         number: issue.number,
         title: issue.title,
         body: issue.body ?? null,
         url: issue.html_url,
         state: issue.state,
-        labels: issue.labels.map(l => (typeof l === 'string' ? l : (l.name ?? ''))),
+        labels: issue.labels.map((l) => (typeof l === 'string' ? l : (l.name ?? ''))),
         createdAt: issue.created_at,
         updatedAt: issue.updated_at,
       }));
@@ -230,11 +230,7 @@ export class GitHubApiTool {
   /**
    * Add a comment to an issue or pull request.
    */
-  async addComment(
-    repo: string,
-    issueNumber: number,
-    body: string
-  ): Promise<GitHubComment> {
+  async addComment(repo: string, issueNumber: number, body: string): Promise<GitHubComment> {
     const { owner, name } = this.parseRepo(repo);
 
     try {

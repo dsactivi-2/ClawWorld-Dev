@@ -147,6 +147,7 @@ export class MonitoringTool {
       });
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     app.get('/metrics', async (_req: Request, res: Response) => {
       try {
         const metrics = await this.registry.metrics();
@@ -208,7 +209,7 @@ export class MonitoringTool {
   async sendPagerDutyAlert(
     severity: MetricSeverity,
     summary: string,
-    details: Record<string, unknown> = {}
+    details: Record<string, unknown> = {},
   ): Promise<PagerDutyAlertResult> {
     const routingKey = process.env['PAGERDUTY_ROUTING_KEY'];
     if (!routingKey) {
@@ -255,6 +256,7 @@ export class MonitoringTool {
   // Convenience: expose the built-in instruments for direct use
   // -------------------------------------------------------------------------
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types
   get instruments() {
     return {
       agentCallsTotal: this.agentCallsTotal,
@@ -269,10 +271,7 @@ export class MonitoringTool {
   // Private helpers
   // -------------------------------------------------------------------------
 
-  private getOrCreateCounter(
-    name: string,
-    labels: MetricLabels
-  ): promClient.Counter<string> {
+  private getOrCreateCounter(name: string, labels: MetricLabels): promClient.Counter<string> {
     if (!this.counters.has(name)) {
       const counter = new promClient.Counter({
         name,
@@ -282,13 +281,11 @@ export class MonitoringTool {
       });
       this.counters.set(name, counter);
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.counters.get(name)!;
   }
 
-  private getOrCreateGauge(
-    name: string,
-    labels: MetricLabels
-  ): promClient.Gauge<string> {
+  private getOrCreateGauge(name: string, labels: MetricLabels): promClient.Gauge<string> {
     if (!this.gauges.has(name)) {
       const gauge = new promClient.Gauge({
         name,
@@ -298,13 +295,11 @@ export class MonitoringTool {
       });
       this.gauges.set(name, gauge);
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.gauges.get(name)!;
   }
 
-  private getOrCreateHistogram(
-    name: string,
-    labels: MetricLabels
-  ): promClient.Histogram<string> {
+  private getOrCreateHistogram(name: string, labels: MetricLabels): promClient.Histogram<string> {
     if (!this.histograms.has(name)) {
       const hist = new promClient.Histogram({
         name,
@@ -315,6 +310,7 @@ export class MonitoringTool {
       });
       this.histograms.set(name, hist);
     }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.histograms.get(name)!;
   }
 }

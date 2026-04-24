@@ -70,7 +70,7 @@ export interface WorkflowInstance {
   name: string;
   status: WorkflowStatus;
   input: unknown;
-  output: unknown | null;
+  output: unknown;
   currentStepId: string | null;
   stepHistory: StepExecution[];
   checkpoint: Checkpoint | null;
@@ -87,7 +87,7 @@ export interface StepExecution {
   attempt: number;
   status: 'running' | 'completed' | 'failed' | 'skipped';
   input: unknown;
-  output: unknown | null;
+  output: unknown;
   startedAt: string;
   completedAt: string | null;
   durationMs: number | null;
@@ -283,6 +283,7 @@ export class WorkflowOrchestrationSkill extends EventEmitter {
       ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { error, value } = createWorkflowSchema.validate(raw, { abortEarly: false });
     if (error) {
       throw new WorkflowValidationError(error.message);
@@ -376,7 +377,9 @@ export class WorkflowOrchestrationSkill extends EventEmitter {
             await this._waitForResume(instance, abortController.signal);
             // Cast needed: TypeScript narrows to 'paused' inside this block,
             // but _waitForResume mutates status asynchronously.
-            if ((instance.status as WorkflowStatus) === 'cancelled') break;
+            if ((instance.status as WorkflowStatus) === 'cancelled') {
+              break;
+            }
           }
 
           const step = stepMap.get(currentStepId);
@@ -640,7 +643,9 @@ export class WorkflowOrchestrationSkill extends EventEmitter {
     const deadline = Date.now() + timeoutMs;
     logger.debug('Waiting for workflow to resume', { instanceId: instance.instanceId });
     while (instance.status === 'paused') {
-      if (signal.aborted) return;
+      if (signal.aborted) {
+        return;
+      }
       if (Date.now() >= deadline) {
         throw new Error(
           `Workflow "${instance.instanceId}" remained paused for ${timeoutMs}ms without a resume call`,

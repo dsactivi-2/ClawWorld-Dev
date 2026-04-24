@@ -127,9 +127,7 @@ export class GitTool {
       await execFileAsync('git', ['-C', repoDir, 'checkout', '-b', branchName]);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `git checkout -b "${branchName}" failed in "${repoDir}": ${msg}`
-      );
+      throw new Error(`git checkout -b "${branchName}" failed in "${repoDir}": ${msg}`);
     }
   }
 
@@ -142,7 +140,7 @@ export class GitTool {
     title: string,
     body: string,
     head: string,
-    base: string
+    base: string,
   ): Promise<PullRequestResult> {
     const repo = this.extractOwnerRepo(repoUrl);
 
@@ -159,9 +157,7 @@ export class GitTool {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `GitHub API createPullRequest failed (${response.status}): ${errorText}`
-      );
+      throw new Error(`GitHub API createPullRequest failed (${response.status}): ${errorText}`);
     }
 
     const data = (await response.json()) as {
@@ -189,10 +185,14 @@ export class GitTool {
   async getStatus(repoDir: string): Promise<GitStatusResult> {
     try {
       const { stdout: statusOutput } = await execFileAsync('git', [
-        '-C', repoDir, 'status', '--porcelain=v1', '-b',
+        '-C',
+        repoDir,
+        'status',
+        '--porcelain=v1',
+        '-b',
       ]);
 
-      const lines = statusOutput.split('\n').filter(l => l.trim());
+      const lines = statusOutput.split('\n').filter((l) => l.trim());
       const branchLine = lines.shift() ?? '';
 
       const branchMatch = branchLine.match(/^## (.+?)(?:\.\.\.(.+?))?( \[(.+)\])?$/);
@@ -212,7 +212,9 @@ export class GitTool {
       const untracked: string[] = [];
 
       for (const line of lines) {
-        if (!line) continue;
+        if (!line) {
+          continue;
+        }
         const xy = line.substring(0, 2);
         const file = line.substring(3);
         const x = xy[0] ?? ' ';
@@ -221,8 +223,12 @@ export class GitTool {
         if (x === '?') {
           untracked.push(file);
         } else {
-          if (x !== ' ') staged.push(file);
-          if (y !== ' ') unstaged.push(file);
+          if (x !== ' ') {
+            staged.push(file);
+          }
+          if (y !== ' ') {
+            unstaged.push(file);
+          }
         }
       }
 
@@ -247,21 +253,32 @@ export class GitTool {
   async getDiff(repoDir: string, fromRef: string, toRef: string): Promise<GitDiffResult> {
     try {
       const { stdout: diffOutput } = await execFileAsync('git', [
-        '-C', repoDir, 'diff', fromRef, toRef,
+        '-C',
+        repoDir,
+        'diff',
+        fromRef,
+        toRef,
       ]);
       const { stdout: statOutput } = await execFileAsync('git', [
-        '-C', repoDir, 'diff', '--stat', fromRef, toRef,
+        '-C',
+        repoDir,
+        'diff',
+        '--stat',
+        fromRef,
+        toRef,
       ]);
 
       const filesChanged: string[] = [];
       const fileRegex = /^\s*(.+?)\s+\|/gm;
       let match: RegExpExecArray | null;
       while ((match = fileRegex.exec(statOutput)) !== null) {
-        if (match[1]) filesChanged.push(match[1].trim());
+        if (match[1]) {
+          filesChanged.push(match[1].trim());
+        }
       }
 
       const summaryMatch = statOutput.match(
-        /(\d+) insertion[s]?\(\+\).*?(\d+) deletion[s]?\(-\)|(\d+) insertion[s]?\(\+\)|(\d+) deletion[s]?\(-\)/
+        /(\d+) insertion[s]?\(\+\).*?(\d+) deletion[s]?\(-\)|(\d+) insertion[s]?\(\+\)|(\d+) deletion[s]?\(-\)/,
       );
       let insertions = 0;
       let deletions = 0;
@@ -280,9 +297,7 @@ export class GitTool {
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `git diff failed in "${repoDir}" (${fromRef}..${toRef}): ${msg}`
-      );
+      throw new Error(`git diff failed in "${repoDir}" (${fromRef}..${toRef}): ${msg}`);
     }
   }
 
@@ -293,10 +308,14 @@ export class GitTool {
   private extractOwnerRepo(repoUrl: string): string {
     // Accept "owner/repo", "https://github.com/owner/repo", or "git@github.com:owner/repo"
     const httpsMatch = repoUrl.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
-    if (httpsMatch?.[1]) return httpsMatch[1];
+    if (httpsMatch?.[1]) {
+      return httpsMatch[1];
+    }
 
     const shortMatch = repoUrl.match(/^([^/]+\/[^/]+)$/);
-    if (shortMatch?.[1]) return shortMatch[1];
+    if (shortMatch?.[1]) {
+      return shortMatch[1];
+    }
 
     throw new Error(`Cannot parse owner/repo from URL: "${repoUrl}"`);
   }

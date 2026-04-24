@@ -80,7 +80,9 @@ function delay(ms: number): Promise<void> {
 let _anthropicClient: Anthropic | null = null;
 
 function getAnthropicClient(): Anthropic {
-  if (_anthropicClient) return _anthropicClient;
+  if (_anthropicClient) {
+    return _anthropicClient;
+  }
   const apiKey = process.env['ANTHROPIC_API_KEY'];
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY environment variable is not set');
@@ -313,6 +315,7 @@ Respond ONLY with valid JSON matching this schema:
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await
 async function spawnBuilderTeams(state: GraphState): Promise<Partial<GraphState>> {
   const nodeName = 'spawn_builder_teams';
   log.info(`Node: ${nodeName}`);
@@ -322,16 +325,18 @@ async function spawnBuilderTeams(state: GraphState): Promise<Partial<GraphState>
   const stepHistory: string[] = [...state.stepHistory, nodeName];
 
   try {
-    const plan = state.requirements['_architecturePlan'] as {
-      agents?: Array<{
-        id: string;
-        name: string;
-        model: string;
-        role: string;
-        responsibilities: string[];
-        tools: string[];
-      }>;
-    } | undefined;
+    const plan = state.requirements['_architecturePlan'] as
+      | {
+          agents?: Array<{
+            id: string;
+            name: string;
+            model: string;
+            role: string;
+            responsibilities: string[];
+            tools: string[];
+          }>;
+        }
+      | undefined;
 
     const rawAgents = plan?.agents ?? [];
 
@@ -639,6 +644,7 @@ Respond ONLY with valid JSON:
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await
 async function deploySystem(state: GraphState): Promise<Partial<GraphState>> {
   const nodeName = 'deploy_system';
   log.info(`Node: ${nodeName}`);
@@ -648,11 +654,13 @@ async function deploySystem(state: GraphState): Promise<Partial<GraphState>> {
   const stepHistory: string[] = [...state.stepHistory, nodeName];
 
   try {
-    const plan = state.requirements['_architecturePlan'] as {
-      agents?: AgentConfig[];
-      workflows?: WorkflowDefinition[];
-      architecture?: string;
-    } | undefined;
+    const plan = state.requirements['_architecturePlan'] as
+      | {
+          agents?: AgentConfig[];
+          workflows?: WorkflowDefinition[];
+          architecture?: string;
+        }
+      | undefined;
 
     const deploymentConfig: DeploymentConfig = {
       environment: (process.env['NODE_ENV'] as DeploymentConfig['environment']) ?? 'development',
@@ -679,8 +687,8 @@ async function deploySystem(state: GraphState): Promise<Partial<GraphState>> {
 
     const finalPlan: FinalPlan = {
       architecture: plan?.architecture ?? 'Multi-agent LangGraph pipeline',
-      agents: (plan?.agents as AgentConfig[] | undefined) ?? [],
-      workflows: (plan?.workflows as WorkflowDefinition[] | undefined) ?? [],
+      agents: plan?.agents ?? [],
+      workflows: plan?.workflows ?? [],
       deploymentConfig,
       estimatedComplexity:
         (state.requirements['estimatedComplexity'] as FinalPlan['estimatedComplexity']) ?? 'medium',
@@ -774,6 +782,7 @@ export class LangGraphOrchestrator {
   // Graph construction
   // -------------------------------------------------------------------------
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types
   private buildGraph() {
     const graphBuilder = new StateGraph<GraphState>({
       channels: {
@@ -796,10 +805,7 @@ export class LangGraphOrchestrator {
           default: () => [],
         },
         teamResults: {
-          value: (
-            _prev: Record<string, TeamResult>,
-            next: Record<string, TeamResult>,
-          ) => next,
+          value: (_prev: Record<string, TeamResult>, next: Record<string, TeamResult>) => next,
           default: () => ({}),
         },
         finalPlan: {
@@ -833,7 +839,8 @@ export class LangGraphOrchestrator {
     // Add edges — cast to any to work around LangGraph 0.2.x strict generic
     // inference (addNode() doesn't return a re-typed builder in mutation style).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const g = graphBuilder as any;
+    const g = graphBuilder as any; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+    /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
     g.addEdge(START, 'analyze_requirements');
     g.addEdge('analyze_requirements', 'plan_architecture');
     g.addEdge('plan_architecture', 'spawn_builder_teams');
@@ -841,18 +848,15 @@ export class LangGraphOrchestrator {
     g.addEdge('build_agents', 'validate_and_test');
 
     // Conditional edge from validate_and_test
-    g.addConditionalEdges(
-      'validate_and_test',
-      routeAfterValidation,
-      {
-        deploy_system: 'deploy_system',
-        build_agents: 'build_agents',
-        [END]: END,
-      },
-    );
+    g.addConditionalEdges('validate_and_test', routeAfterValidation, {
+      deploy_system: 'deploy_system',
+      build_agents: 'build_agents',
+      [END]: END,
+    });
 
     g.addEdge('deploy_system', END);
 
+    /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
     return graphBuilder.compile({ checkpointer: this.checkpointer });
   }
 
@@ -895,7 +899,7 @@ export class LangGraphOrchestrator {
 
     try {
       const config = { configurable: { thread_id: stateKey } };
-      const finalState = await this.graph.invoke(initialState, config) as GraphState;
+      const finalState = (await this.graph.invoke(initialState, config)) as GraphState;
 
       this.stateStore.set(stateKey, finalState);
 

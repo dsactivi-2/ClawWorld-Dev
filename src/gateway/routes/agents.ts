@@ -7,7 +7,7 @@
  * GET  /:id/metrics   — agent performance metrics
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import Joi from 'joi';
 import { createLogger } from '../../utils/logger';
 import type { TeamSpawningSkill } from '../../../skills/team_spawning';
@@ -146,6 +146,7 @@ export function createAgentsRouter(deps: AgentsRouterDeps): Router {
       return res.status(400).json(errorBody('Invalid agent id', undefined, reqId));
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { error, value } = assignTaskSchema.validate(req.body);
     if (error) {
       return res.status(400).json(errorBody('Validation failed', error.details, reqId));
@@ -185,8 +186,7 @@ export function createAgentsRouter(deps: AgentsRouterDeps): Router {
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      const status =
-        err instanceof Error && err.name === 'TeamScalingError' ? 409 : 500;
+      const status = err instanceof Error && err.name === 'TeamScalingError' ? 409 : 500;
       log.error('Failed to assign task to agent', { id, message, reqId });
       return res.status(status).json(errorBody('Failed to assign task', message, reqId));
     }

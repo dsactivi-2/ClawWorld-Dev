@@ -198,7 +198,9 @@ let agentCallErrors: promClient.Counter<string>;
 let workflowDuration: promClient.Histogram<string>;
 
 function ensureMetrics(): void {
-  if (metricsInitialised) return;
+  if (metricsInitialised) {
+    return;
+  }
 
   // Use the default registry; safe to call multiple times in the same process
   // because prom-client deduplicates by metric name.
@@ -254,13 +256,15 @@ function generateId(): string {
 }
 
 function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 0) return 0;
+  if (sorted.length === 0) {
+    return 0;
+  }
   const idx = Math.ceil((p / 100) * sorted.length) - 1;
   return sorted[Math.max(0, idx)] ?? 0;
 }
 
 function costPerToken(model: string): number {
-  return MODEL_COST_PER_TOKEN[model] ?? MODEL_COST_PER_TOKEN['default']!;
+  return MODEL_COST_PER_TOKEN[model] ?? MODEL_COST_PER_TOKEN['default'] ?? 0;
 }
 
 /** Returns the YYYY-MM string for a given ISO-8601 date */
@@ -325,7 +329,9 @@ export class PerformanceProfilingSkill {
       inputTokensHint: options.inputTokensHint,
       outputTokensHint: options.outputTokensHint,
     });
-    if (error) throw new ProfilingValidationError(error.message);
+    if (error) {
+      throw new ProfilingValidationError(error.message);
+    }
 
     const model = options.model ?? 'default';
     let inputTokens = options.inputTokensHint ?? 0;
@@ -346,8 +352,12 @@ export class PerformanceProfilingSkill {
         const r = result as Record<string, unknown>;
         if (r['usage'] != null && typeof r['usage'] === 'object') {
           const usage = r['usage'] as Record<string, number>;
-          if (typeof usage['input_tokens'] === 'number') inputTokens = usage['input_tokens'];
-          if (typeof usage['output_tokens'] === 'number') outputTokens = usage['output_tokens'];
+          if (typeof usage['input_tokens'] === 'number') {
+            inputTokens = usage['input_tokens'];
+          }
+          if (typeof usage['output_tokens'] === 'number') {
+            outputTokens = usage['output_tokens'];
+          }
         }
       }
     } catch (err) {
@@ -389,7 +399,7 @@ export class PerformanceProfilingSkill {
     if (!this.callProfiles.has(agentId)) {
       this.callProfiles.set(agentId, []);
     }
-    this.callProfiles.get(agentId)!.push(profile);
+    this.callProfiles.get(agentId)?.push(profile);
 
     logger.debug('Agent call profiled', {
       agentId,
@@ -399,7 +409,7 @@ export class PerformanceProfilingSkill {
     });
 
     if (!success) {
-      throw new PerformanceProfilingError(errorMessage!);
+      throw new PerformanceProfilingError(errorMessage ?? 'Unknown error');
     }
 
     return { result, profile };
@@ -415,7 +425,9 @@ export class PerformanceProfilingSkill {
    */
   profileWorkflow(workflowId: string, steps: StepProfile[]): WorkflowProfile {
     const { error } = profileWorkflowSchema.validate({ workflowId });
-    if (error) throw new ProfilingValidationError(error.message);
+    if (error) {
+      throw new ProfilingValidationError(error.message);
+    }
 
     if (!Array.isArray(steps) || steps.length === 0) {
       throw new ProfilingValidationError('steps must be a non-empty array of StepProfile');
@@ -425,8 +437,14 @@ export class PerformanceProfilingSkill {
     const totalTokens = steps.reduce((s, p) => s + p.tokens, 0);
     const totalCostUsd = steps.reduce((s, p) => s + p.costUsd, 0);
 
-    const startedAt = steps.reduce((min, p) => (p.startedAt < min ? p.startedAt : min), steps[0]!.startedAt);
-    const completedAt = steps.reduce((max, p) => (p.completedAt > max ? p.completedAt : max), steps[0]!.completedAt);
+    const startedAt = steps.reduce(
+      (min, p) => (p.startedAt < min ? p.startedAt : min),
+      steps[0]?.startedAt ?? '',
+    );
+    const completedAt = steps.reduce(
+      (max, p) => (p.completedAt > max ? p.completedAt : max),
+      steps[0]?.completedAt ?? '',
+    );
 
     const wfProfile: WorkflowProfile = {
       workflowId,
@@ -441,7 +459,7 @@ export class PerformanceProfilingSkill {
     if (!this.workflowProfiles.has(workflowId)) {
       this.workflowProfiles.set(workflowId, []);
     }
-    this.workflowProfiles.get(workflowId)!.push(wfProfile);
+    this.workflowProfiles.get(workflowId)?.push(wfProfile);
 
     // Record in Prometheus
     workflowDuration.labels({ workflow_id: workflowId }).observe(totalDurationMs);
@@ -477,7 +495,8 @@ export class PerformanceProfilingSkill {
       let recommendation = `Step "${step.stepId}" takes ${step.durationMs}ms (${pct}% of total).`;
 
       if (pct >= 50) {
-        recommendation += ' Consider caching results, reducing token usage, or parallelising this step.';
+        recommendation +=
+          ' Consider caching results, reducing token usage, or parallelising this step.';
       } else if (pct >= 25) {
         recommendation += ' Investigate whether this step can be optimised or made async.';
       } else {
@@ -512,8 +531,10 @@ export class PerformanceProfilingSkill {
 
     for (const step of profileData.steps) {
       agentMap.set(step.agentId, (agentMap.get(step.agentId) ?? 0) + step.durationMs);
-      if (!stepsByAgent.has(step.agentId)) stepsByAgent.set(step.agentId, []);
-      stepsByAgent.get(step.agentId)!.push(step);
+      if (!stepsByAgent.has(step.agentId)) {
+        stepsByAgent.set(step.agentId, []);
+      }
+      stepsByAgent.get(step.agentId)?.push(step);
     }
 
     const children: FlameNode[] = Array.from(agentMap.entries()).map(([agentId, totalMs]) => ({
@@ -542,7 +563,9 @@ export class PerformanceProfilingSkill {
    */
   trackTokenUsage(agentId: string, month: string): MonthlyTokenUsage {
     const { error } = trackUsageSchema.validate({ agentId, month });
-    if (error) throw new ProfilingValidationError(error.message);
+    if (error) {
+      throw new ProfilingValidationError(error.message);
+    }
 
     const profiles = this.callProfiles.get(agentId) ?? [];
     const monthlyProfiles = profiles.filter((p) => toYearMonth(p.startedAt) === month);
@@ -576,7 +599,9 @@ export class PerformanceProfilingSkill {
    */
   trackCostUsage(agentId: string, month: string, budgetUsd = 100): MonthlyCostUsage {
     const { error } = trackCostSchema.validate({ agentId, month, budgetUsd });
-    if (error) throw new ProfilingValidationError(error.message);
+    if (error) {
+      throw new ProfilingValidationError(error.message);
+    }
 
     const profiles = this.callProfiles.get(agentId) ?? [];
     const monthlyProfiles = profiles.filter((p) => toYearMonth(p.startedAt) === month);
@@ -621,7 +646,9 @@ export class PerformanceProfilingSkill {
 
     const durations = profiles.map((p) => p.durationMs).sort((a, b) => a - b);
     const avgDurationMs =
-      durations.length > 0 ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length) : 0;
+      durations.length > 0
+        ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length)
+        : 0;
 
     const p50 = percentile(durations, 50);
     const p95 = percentile(durations, 95);

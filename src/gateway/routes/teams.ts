@@ -8,7 +8,7 @@
  * POST /:id/scale — scale team up or down
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import Joi from 'joi';
 import { createLogger } from '../../utils/logger';
 import type { TeamSpawningSkill, SpawnTeamConfig } from '../../../skills/team_spawning';
@@ -96,6 +96,7 @@ export function createTeamsRouter(deps: TeamsRouterDeps): Router {
   router.post('/spawn', (req: Request, res: Response) => {
     const reqId = rid(req);
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { error, value } = spawnTeamSchema.validate(req.body);
     if (error) {
       return res.status(400).json(errorBody('Validation failed', error.details, reqId));
@@ -252,6 +253,7 @@ export function createTeamsRouter(deps: TeamsRouterDeps): Router {
       return res.status(400).json(errorBody('Invalid team id', undefined, reqId));
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { error, value } = scaleTeamSchema.validate(req.body);
     if (error) {
       return res.status(400).json(errorBody('Validation failed', error.details, reqId));
@@ -262,7 +264,12 @@ export function createTeamsRouter(deps: TeamsRouterDeps): Router {
     try {
       const scaled = teamSkill.scaleTeam(id, targetCount);
 
-      log.info('Team scaled via API', { teamId: id, targetCount, actual: scaled.agents.length, reqId });
+      log.info('Team scaled via API', {
+        teamId: id,
+        targetCount,
+        actual: scaled.agents.length,
+        reqId,
+      });
 
       return res.status(200).json({
         teamId: scaled.teamId,

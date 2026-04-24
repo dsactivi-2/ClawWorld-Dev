@@ -4,7 +4,7 @@
  * Provides cache-first reads and Mermaid diagram export.
  */
 
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import { createLogger } from '../utils/logger';
 import type { GraphState } from '../types';
 
@@ -262,9 +262,11 @@ export class GraphMemoryManager {
       }
 
       const row = result.rows[0];
-      if (!row) return null;
+      if (!row) {
+        return null;
+      }
 
-      const state = row.state as GraphState;
+      const state = row.state;
       this.cache.set(stateKey, state);
 
       log.debug('State loaded from database', { stateKey });
@@ -330,9 +332,11 @@ export class GraphMemoryManager {
       }
 
       const row = result.rows[0];
-      if (!row) return null;
+      if (!row) {
+        return null;
+      }
 
-      const state = row.state as GraphState;
+      const state = row.state;
       log.info('State restored from checkpoint', {
         checkpointId,
         stateKey: row.state_key,
@@ -389,8 +393,8 @@ export class GraphMemoryManager {
 
       const items: StateListItem[] = rowsResult.rows.map((row) => ({
         stateKey: row.state_key,
-        currentStep: (row.state as GraphState).currentStep ?? 'unknown',
-        deploymentReady: (row.state as GraphState).deploymentReady ?? false,
+        currentStep: row.state.currentStep ?? 'unknown',
+        deploymentReady: row.state.deploymentReady ?? false,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }));

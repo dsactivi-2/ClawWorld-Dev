@@ -1,4 +1,4 @@
-import nodemailer, { Transporter, SendMailOptions } from 'nodemailer';
+import nodemailer, { type Transporter, type SendMailOptions } from 'nodemailer';
 
 /** Escape user-supplied strings before embedding them in HTML templates */
 function escHtml(str: string): string {
@@ -32,9 +32,15 @@ export class EmailTool {
     const user = process.env['SMTP_USER'];
     const password = process.env['SMTP_PASSWORD'];
 
-    if (!host) throw new Error('SMTP_HOST environment variable is required');
-    if (!user) throw new Error('SMTP_USER environment variable is required');
-    if (!password) throw new Error('SMTP_PASSWORD environment variable is required');
+    if (!host) {
+      throw new Error('SMTP_HOST environment variable is required');
+    }
+    if (!user) {
+      throw new Error('SMTP_USER environment variable is required');
+    }
+    if (!password) {
+      throw new Error('SMTP_PASSWORD environment variable is required');
+    }
 
     this.fromAddress = user;
 
@@ -60,7 +66,7 @@ export class EmailTool {
     to: string | string[],
     subject: string,
     htmlBody: string,
-    textBody?: string
+    textBody?: string,
   ): Promise<SendEmailResult> {
     const recipients = Array.isArray(to) ? to.join(', ') : to;
 
@@ -73,10 +79,14 @@ export class EmailTool {
     };
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const info = await this.transporter.sendMail(mailOptions);
       return {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         messageId: info.messageId as string,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         accepted: (info.accepted as string[]) ?? [],
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         rejected: (info.rejected as string[]) ?? [],
       };
     } catch (error) {
@@ -91,7 +101,7 @@ export class EmailTool {
   async sendAlert(
     severity: EmailSeverity,
     subject: string,
-    details: string
+    details: string,
   ): Promise<SendEmailResult> {
     const alertRecipient = process.env['ALERT_EMAIL'] ?? this.fromAddress;
 
@@ -133,7 +143,12 @@ export class EmailTool {
 
     const textBody = `[${severity.toUpperCase()}] ${subject}\n\n${details}\n\nSent by OpenClaw Teams — ${new Date().toISOString()}`;
 
-    return this.sendEmail(alertRecipient, `[${severity.toUpperCase()}] ${subject}`, htmlBody, textBody);
+    return this.sendEmail(
+      alertRecipient,
+      `[${severity.toUpperCase()}] ${subject}`,
+      htmlBody,
+      textBody,
+    );
   }
 
   /**
@@ -142,7 +157,7 @@ export class EmailTool {
   async sendReport(
     to: string | string[],
     reportName: string,
-    data: ReportData
+    data: ReportData,
   ): Promise<SendEmailResult> {
     const subject = `Report: ${reportName} — ${new Date().toLocaleDateString('en-US', {
       year: 'numeric',
@@ -156,7 +171,7 @@ export class EmailTool {
         <tr>
           <td style="padding: 8px 12px; border-bottom: 1px solid #eee; font-weight: 600; color: #555; width: 40%;">${key}</td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #333;">${this.formatValue(value)}</td>
-        </tr>`
+        </tr>`,
       )
       .join('');
 
@@ -201,8 +216,12 @@ export class EmailTool {
   // ---------------------------------------------------------------------------
 
   private formatValue(value: unknown): string {
-    if (value === null || value === undefined) return '—';
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    if (value === null || value === undefined) {
+      return '—';
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value, null, 2);
+    }
     return String(value);
   }
 }

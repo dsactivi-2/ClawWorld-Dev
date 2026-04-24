@@ -87,7 +87,7 @@ export interface TeamTask {
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
-  result: unknown | null;
+  result: unknown;
   error: string | null;
 }
 
@@ -230,6 +230,7 @@ export class TeamSpawningSkill {
    * @throws {TeamSpawningValidationError} on invalid input
    */
   spawnTeam(teamConfig: SpawnTeamConfig): TeamHealth {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { error, value } = spawnTeamSchema.validate(teamConfig, { abortEarly: false });
     if (error) {
       throw new TeamSpawningValidationError(error.message);
@@ -242,11 +243,15 @@ export class TeamSpawningSkill {
     const agentInstances: AgentInstance[] = validated.agents.map((raw) => {
       const agentConfig: AgentConfig = {
         ...raw,
-        id: (raw as AgentConfig).id ?? uuidv4(),
+        id: raw.id ?? uuidv4(),
       };
       const instance = buildAgentInstance(agentConfig, teamId);
       this.agents.set(instance.agentId, instance);
-      logger.debug('Agent spawned', { agentId: instance.agentId, teamId, model: agentConfig.model });
+      logger.debug('Agent spawned', {
+        agentId: instance.agentId,
+        teamId,
+        model: agentConfig.model,
+      });
       return instance;
     });
 
@@ -280,6 +285,7 @@ export class TeamSpawningSkill {
    * @throws {TeamSpawningValidationError} on invalid input
    */
   spawnAgent(agentConfig: SpawnAgentConfig): AgentInstance {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { error, value } = spawnAgentSchema.validate(agentConfig, { abortEarly: false });
     if (error) {
       throw new TeamSpawningValidationError(error.message);
@@ -425,9 +431,7 @@ export class TeamSpawningSkill {
    * Returns all currently active teams.
    */
   listTeams(): TeamHealth[] {
-    return Array.from(this.teams.values()).filter(
-      (t) => t.status !== 'dissolved',
-    );
+    return Array.from(this.teams.values()).filter((t) => t.status !== 'dissolved');
   }
 
   /**
@@ -454,6 +458,7 @@ export class TeamSpawningSkill {
     }
 
     // idleAgents.length === 0 already checked above — safe to assert non-null
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const selectedAgent = idleAgents[0]!;
     selectedAgent.status = 'busy';
     selectedAgent.resources.tasksInProgress += 1;
@@ -494,7 +499,9 @@ export class TeamSpawningSkill {
    */
   recordTokenUsage(agentId: string, tokens: number): void {
     const agent = this.agents.get(agentId);
-    if (!agent) return;
+    if (!agent) {
+      return;
+    }
     agent.resources.tokensUsed += tokens;
     agent.resources.estimatedCostUsd += tokens * COST_PER_TOKEN_USD;
     agent.updatedAt = new Date().toISOString();

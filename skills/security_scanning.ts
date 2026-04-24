@@ -181,7 +181,10 @@ const scanK8sSchema = Joi.object({
 // ---------------------------------------------------------------------------
 
 export class SecurityScanError extends Error {
-  constructor(message: string, public override readonly cause?: Error) {
+  constructor(
+    message: string,
+    public override readonly cause?: Error,
+  ) {
     super(message);
     this.name = 'SecurityScanError';
   }
@@ -271,7 +274,8 @@ const SCAN_SECRET_PATTERNS: ScanPattern[] = [
     title: 'AWS Access Key ID Detected',
     description: 'An AWS Access Key ID was found hardcoded in the source.',
     severity: 'CRITICAL',
-    remediation: 'Remove the key, rotate it in AWS IAM, and store it in AWS Secrets Manager or environment variables.',
+    remediation:
+      'Remove the key, rotate it in AWS IAM, and store it in AWS Secrets Manager or environment variables.',
   },
   {
     id: 'SEC002',
@@ -291,7 +295,8 @@ const SCAN_SECRET_PATTERNS: ScanPattern[] = [
   },
   {
     id: 'SEC004',
-    pattern: /(?:api[_-]?key|apikey)\s*[:=]\s*['"]([A-Za-z0-9_\-]{20,})['"]|\b[A-Za-z0-9]{32,}\b(?=.*(?:key|secret|token))/gi,
+    pattern:
+      /(?:api[_-]?key|apikey)\s*[:=]\s*['"]([A-Za-z0-9_-]{20,})['"]|\b[A-Za-z0-9]{32,}\b(?=.*(?:key|secret|token))/gi,
     title: 'Hardcoded API Key Detected',
     description: 'A likely hardcoded API key was found in the source.',
     severity: 'HIGH',
@@ -311,7 +316,8 @@ const SCAN_SECRET_PATTERNS: ScanPattern[] = [
     title: 'Database Connection String With Credentials Detected',
     description: 'A database connection string including credentials was found.',
     severity: 'CRITICAL',
-    remediation: 'Store credentials separately in environment variables and assemble the connection string at runtime.',
+    remediation:
+      'Store credentials separately in environment variables and assemble the connection string at runtime.',
   },
 ];
 
@@ -334,7 +340,8 @@ const DOCKERFILE_RULES: DockerRule[] = [
     id: 'DOCKER001',
     pattern: /^FROM\s+\S+:latest\s*$/im,
     title: 'Use of "latest" Docker tag',
-    description: 'Pinning to "latest" makes builds non-deterministic and may pull vulnerable images.',
+    description:
+      'Pinning to "latest" makes builds non-deterministic and may pull vulnerable images.',
     severity: 'HIGH',
     remediation: 'Pin to a specific version digest: `FROM node:20.15.0-alpine3.20`',
     autoFixable: false,
@@ -453,7 +460,8 @@ const K8S_RULES: K8sRule[] = [
     id: 'K8S006',
     check: (c) => c.includes('hostPID: true'),
     title: 'hostPID is enabled',
-    description: 'Sharing the host PID namespace allows container processes to see all host processes.',
+    description:
+      'Sharing the host PID namespace allows container processes to see all host processes.',
     severity: 'CRITICAL',
     remediation: 'Remove `hostPID: true`.',
   },
@@ -501,8 +509,12 @@ function versionBelow(version: string, threshold: string): boolean {
   for (let i = 0; i < Math.max(v.length, t.length); i++) {
     const vi = v[i] ?? 0;
     const ti = t[i] ?? 0;
-    if (vi < ti) return true;
-    if (vi > ti) return false;
+    if (vi < ti) {
+      return true;
+    }
+    if (vi > ti) {
+      return false;
+    }
   }
   return false;
 }
@@ -545,7 +557,9 @@ export class SecurityScanningSkill {
    */
   async scanDependencies(packageJsonPath: string): Promise<DependencyScanResult> {
     const { error } = scanDepsSchema.validate({ packageJsonPath });
-    if (error) throw new SecurityScanValidationError(error.message);
+    if (error) {
+      throw new SecurityScanValidationError(error.message);
+    }
 
     logger.info('Scanning dependencies', { packageJsonPath });
 
@@ -631,7 +645,9 @@ export class SecurityScanningSkill {
    */
   scanSecrets(code: string, sourceName = 'inline'): SecretScanResult {
     const { error } = scanSecretsSchema.validate({ code, sourceName });
-    if (error) throw new SecurityScanValidationError(error.message);
+    if (error) {
+      throw new SecurityScanValidationError(error.message);
+    }
 
     logger.debug('Scanning for secrets', { source: sourceName });
 
@@ -677,7 +693,9 @@ export class SecurityScanningSkill {
    */
   async scanDockerfile(dockerfilePath: string): Promise<DockerfileScanResult> {
     const { error } = scanDockerfileSchema.validate({ dockerfilePath });
-    if (error) throw new SecurityScanValidationError(error.message);
+    if (error) {
+      throw new SecurityScanValidationError(error.message);
+    }
 
     logger.info('Scanning Dockerfile', { dockerfilePath });
 
@@ -748,7 +766,9 @@ export class SecurityScanningSkill {
    */
   async scanKubernetesManifests(manifestDir: string): Promise<KubernetesScanResult> {
     const { error } = scanK8sSchema.validate({ manifestDir });
-    if (error) throw new SecurityScanValidationError(error.message);
+    if (error) {
+      throw new SecurityScanValidationError(error.message);
+    }
 
     logger.info('Scanning Kubernetes manifests', { manifestDir });
 
@@ -852,7 +872,8 @@ export class SecurityScanningSkill {
     }));
 
     const report: SarifReport = {
-      $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+      $schema:
+        'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
       version: '2.1.0',
       runs: [
         {
@@ -897,6 +918,7 @@ export class SecurityScanningSkill {
     const fixable = issues.filter((i) => i.autoFixable && i.autoFix != null);
 
     for (const issue of fixable) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const fix = issue.autoFix!;
       try {
         let content = await fs.readFile(fix.file, 'utf-8');
