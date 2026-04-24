@@ -1,7 +1,7 @@
 ---
 id: test-validator-team
 name: Test Validator Supervisor
-model: claude-sonnet-4-6
+model: claude-haiku-4-5-20251001
 role: SUPERVISOR
 level: 1
 workspace: /var/lib/openclaw/workspace-test-validator-team
