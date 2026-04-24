@@ -234,6 +234,10 @@ export async function closePool(): Promise<void> {
     log.info('Closing database pool…');
     await pool.end();
     pool = null;
+    // Reset the cached config so the next getPool() re-reads env vars fresh.
+    // This matters in test environments where DB config may change between
+    // pool close and the next test suite's pool creation.
+    _poolConfig = null;
     log.info('Database pool closed');
   }
 }

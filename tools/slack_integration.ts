@@ -33,11 +33,10 @@ export class SlackIntegrationTool {
     if (!token) {
       throw new Error('SLACK_BOT_TOKEN environment variable is required');
     }
-    // SLACK_SIGNING_SECRET is validated at startup to ensure the env is configured
-    const signingSecret = process.env['SLACK_SIGNING_SECRET'];
-    if (!signingSecret) {
-      throw new Error('SLACK_SIGNING_SECRET environment variable is required');
-    }
+    // Note: SLACK_SIGNING_SECRET is intentionally NOT validated here.
+    // It is only needed for *inbound* webhook signature verification, which is
+    // the responsibility of the Express middleware layer (e.g. @slack/bolt or
+    // a custom verifyRequestSignature middleware), not the outbound WebClient.
     this.client = new WebClient(token);
   }
 
