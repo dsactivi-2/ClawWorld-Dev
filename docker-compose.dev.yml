@@ -1,0 +1,91 @@
+# =============================================================================
+# OpenClaw Teams — Lokale Entwicklungsinfrastruktur
+# Startet echte PostgreSQL + Redis Instanzen auf deinem Mac
+#
+# Starten:  docker compose -f docker-compose.local.yml up -d
+# Stoppen:  docker compose -f docker-compose.local.yml down
+# Reset:    docker compose -f docker-compose.local.yml down -v
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — Hauptdatenbank
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: openclaw_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openclaw_teams
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-96427f508632653ab201beae4499507404acec989eef9f71}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=en_US.utf8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openclaw -d openclaw_teams"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — Cache + Queue
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: openclaw_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-f5ca945820a24ec6795d1d356f2393cc6b40558de27da2fa}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-f5ca945820a24ec6795d1d356f2393cc6b40558de27da2fa}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # pgAdmin 4 — Datenbank-GUI (optional, Port 5050)
+  # Öffnen: http://localhost:5050  Login: admin@openclaw.local / admin
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: openclaw_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@openclaw.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin-servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    name: openclaw_postgres_data
+  redis_data:
+    name: openclaw_redis_data
+  pgadmin_data:
+    name: openclaw_pgadmin_data

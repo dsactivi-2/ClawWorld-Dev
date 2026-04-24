@@ -5,7 +5,11 @@
  * initialises PostgreSQL + LangGraph, and handles graceful shutdown.
  */
 
+// Sentry MUST be initialised before any other import
+import './instrument';
+
 import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import express, { Application, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -228,6 +232,13 @@ async function createApp(): Promise<{
   );
 
   // -------------------------------------------------------------------------
+  // Sentry error handler — must be AFTER all routes, BEFORE other error middleware
+  // -------------------------------------------------------------------------
+  if (process.env['SENTRY_DSN']) {
+    Sentry.setupExpressErrorHandler(app);
+  }
+
+  // -------------------------------------------------------------------------
   // 404 handler
   // -------------------------------------------------------------------------
   app.use((_req: Request, res: Response) => {
@@ -239,6 +250,9 @@ async function createApp(): Promise<{
   // -------------------------------------------------------------------------
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     log.error('Unhandled error', { message: err.message, stack: err.stack });
+    if (process.env['SENTRY_DSN']) {
+      Sentry.captureException(err);
+    }
     res.status(500).json({ error: 'Internal server error', message: err.message });
   });
 

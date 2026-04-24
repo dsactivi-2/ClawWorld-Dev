@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "OpenClaw Local",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "openclaw_teams",
+      "Username": "openclaw",
+      "SSLMode": "prefer",
+      "PassFile": "/tmp/pgpassfile"
+    }
+  }
+}
