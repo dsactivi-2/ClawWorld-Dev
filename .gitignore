@@ -145,3 +145,7 @@ terraform.rc
 
 # Combined export file (too large for repo)
 OPENCLAW_TEAMS_COMPLETE.txt
+
+# Cowork session temp files
+_tmp_*
+cowork-skills/
