@@ -458,7 +458,7 @@ Output ONLY the TypeScript source code — no explanations, no markdown fences.`
               ),
             `build-agent-${agentConfig.id}`,
           );
-          agentCodes.push({ agentId: agentConfig.id, code });
+          agentCodes.push({ agentId: agentConfig.id ?? agentConfig.name, code });
           log.debug(`Agent built: ${agentConfig.id}`);
         } catch (err: unknown) {
           const error = err instanceof Error ? err : new Error(String(err));

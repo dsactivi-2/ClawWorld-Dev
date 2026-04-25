@@ -94,8 +94,17 @@ import { Pool } from 'pg';
 import { StateGraph } from '@langchain/langgraph';
 import { LangGraphOrchestrator } from '../../src/orchestrator/langgraph-orchestrator';
 import { GraphMemoryManager } from '../../src/memory/graph-memory';
-import { TeamSpawningSkill } from '../../skills/team_spawning';
-import { WorkflowOrchestrationSkill } from '../../skills/workflow_orchestration';
+import {
+  TeamSpawningSkill,
+  TeamSpawningValidationError,
+  TeamNotFoundError,
+  TeamScalingError,
+} from '../../skills/team_spawning';
+import {
+  WorkflowOrchestrationSkill,
+  WorkflowValidationError,
+  WorkflowNotFoundError,
+} from '../../skills/workflow_orchestration';
 import type { GraphState } from '../../src/types';
 
 // ---------------------------------------------------------------------------
@@ -526,12 +535,12 @@ describe('TeamSpawningSkill', () => {
     it('should throw TeamSpawningValidationError when name is empty', () => {
       expect(() =>
         skill.spawnTeam({ name: '', role: 'r', agents: [makeAgent()] }),
-      ).toThrow('TeamSpawningValidationError');
+      ).toThrow(TeamSpawningValidationError);
     });
 
     it('should throw TeamSpawningValidationError when agents array is empty', () => {
       expect(() => skill.spawnTeam({ name: 'T', role: 'r', agents: [] })).toThrow(
-        'TeamSpawningValidationError',
+        TeamSpawningValidationError,
       );
     });
   });
@@ -556,7 +565,7 @@ describe('TeamSpawningSkill', () => {
     it('should throw TeamSpawningValidationError on invalid model field', () => {
       expect(() =>
         skill.spawnAgent({ ...makeAgent(), model: '' }),
-      ).toThrow('TeamSpawningValidationError');
+      ).toThrow(TeamSpawningValidationError);
     });
   });
 
@@ -585,11 +594,11 @@ describe('TeamSpawningSkill', () => {
 
     it('should throw TeamScalingError when targetCount is negative', () => {
       const team = skill.spawnTeam({ name: 'T', role: 'r', agents: [makeAgent()] });
-      expect(() => skill.scaleTeam(team.teamId, -1)).toThrow('TeamScalingError');
+      expect(() => skill.scaleTeam(team.teamId, -1)).toThrow(TeamScalingError);
     });
 
     it('should throw TeamNotFoundError for an unknown teamId', () => {
-      expect(() => skill.scaleTeam('ghost-team', 2)).toThrow('TeamNotFoundError');
+      expect(() => skill.scaleTeam('ghost-team', 2)).toThrow(TeamNotFoundError);
     });
   });
 
@@ -614,11 +623,11 @@ describe('TeamSpawningSkill', () => {
       const team = skill.spawnTeam({ name: 'T', role: 'r', agents: [makeAgent()] });
       // Exhaust the single agent
       skill.assignTaskToTeam(team.teamId, {});
-      expect(() => skill.assignTaskToTeam(team.teamId, {})).toThrow('TeamScalingError');
+      expect(() => skill.assignTaskToTeam(team.teamId, {})).toThrow(TeamScalingError);
     });
 
     it('should throw TeamNotFoundError for an unknown teamId', () => {
-      expect(() => skill.assignTaskToTeam('ghost', {})).toThrow('TeamNotFoundError');
+      expect(() => skill.assignTaskToTeam('ghost', {})).toThrow(TeamNotFoundError);
     });
   });
 
@@ -658,7 +667,7 @@ describe('WorkflowOrchestrationSkill', () => {
 
     it('should throw WorkflowValidationError when steps is empty', () => {
       expect(() => orchestrator.createWorkflow('Flow', [], { exitPoints: ['x'] })).toThrow(
-        'WorkflowValidationError',
+        WorkflowValidationError,
       );
     });
 
@@ -666,7 +675,7 @@ describe('WorkflowOrchestrationSkill', () => {
       const step = makeStep({ id: 'step-1' });
       expect(() =>
         orchestrator.createWorkflow('Flow', [step], { entryPoint: 'nonexistent', exitPoints: ['step-1'] }),
-      ).toThrow('WorkflowValidationError');
+      ).toThrow(WorkflowValidationError);
     });
 
     it('should use the first step as entryPoint when not specified', () => {
@@ -696,7 +705,7 @@ describe('WorkflowOrchestrationSkill', () => {
 
     it('should throw WorkflowNotFoundError for an unknown workflowId', async () => {
       await expect(orchestrator.executeWorkflow('no-such-id', {})).rejects.toThrow(
-        'WorkflowNotFoundError',
+        WorkflowNotFoundError,
       );
     });
 
@@ -811,7 +820,7 @@ describe('WorkflowOrchestrationSkill', () => {
     });
 
     it('should throw WorkflowNotFoundError for an unknown instanceId', () => {
-      expect(() => orchestrator.getWorkflowStatus('ghost-id')).toThrow('WorkflowNotFoundError');
+      expect(() => orchestrator.getWorkflowStatus('ghost-id')).toThrow(WorkflowNotFoundError);
     });
   });
 
@@ -836,7 +845,7 @@ describe('WorkflowOrchestrationSkill', () => {
     });
 
     it('should throw WorkflowNotFoundError for an unknown instanceId', () => {
-      expect(() => orchestrator.cancelWorkflow('ghost')).toThrow('WorkflowNotFoundError');
+      expect(() => orchestrator.cancelWorkflow('ghost')).toThrow(WorkflowNotFoundError);
     });
   });
 

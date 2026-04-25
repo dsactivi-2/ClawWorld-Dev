@@ -25,7 +25,6 @@ import {
 
 function makeAgentConfig(overrides: Record<string, unknown> = {}) {
   return {
-    id: `agent-${Math.random().toString(36).slice(2, 8)}`,
     name: 'test-agent',
     model: 'claude-sonnet',
     systemPrompt: 'You are a test agent.',
