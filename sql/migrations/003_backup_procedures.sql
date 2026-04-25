@@ -184,8 +184,8 @@ BEGIN
         ARRAY[
             'agents', 'agent_sessions', 'agent_tasks',
             'skills', 'workflows', 'workflow_runs',
-            'audit_log', 'graph_states', 'graph_edges',
-            'graph_checkpoints', 'graph_history'
+            'audit_log', 'langgraph_states', 'langgraph_edges',
+            'langgraph_checkpoints', 'langgraph_history'
         ],
         NOW()
     )
@@ -200,10 +200,10 @@ BEGIN
         'workflows',         (SELECT COUNT(*) FROM workflows),
         'workflow_runs',     (SELECT COUNT(*) FROM workflow_runs),
         'audit_log',         (SELECT COUNT(*) FROM audit_log),
-        'graph_states',      (SELECT COUNT(*) FROM graph_states),
-        'graph_edges',       (SELECT COUNT(*) FROM graph_edges),
-        'graph_checkpoints', (SELECT COUNT(*) FROM graph_checkpoints),
-        'graph_history',     (SELECT COUNT(*) FROM graph_history)
+        'langgraph_states',      (SELECT COUNT(*) FROM langgraph_states),
+        'langgraph_edges',       (SELECT COUNT(*) FROM langgraph_edges),
+        'langgraph_checkpoints', (SELECT COUNT(*) FROM langgraph_checkpoints),
+        'langgraph_history',     (SELECT COUNT(*) FROM langgraph_history)
     ) INTO v_counts;
 
     UPDATE backup_jobs
@@ -253,7 +253,7 @@ BEGIN
         ARRAY[
             'agents', 'agent_sessions', 'agent_tasks',
             'skills', 'workflows', 'workflow_runs',
-            'graph_states', 'graph_history'
+            'langgraph_states', 'langgraph_history'
         ],
         NOW()
     )
@@ -266,8 +266,8 @@ BEGIN
         'skills',         (SELECT COUNT(*) FROM skills         WHERE updated_at  >= p_since),
         'workflows',      (SELECT COUNT(*) FROM workflows      WHERE updated_at  >= p_since),
         'workflow_runs',  (SELECT COUNT(*) FROM workflow_runs  WHERE started_at  >= p_since),
-        'graph_states',   (SELECT COUNT(*) FROM graph_states   WHERE updated_at  >= p_since),
-        'graph_history',  (SELECT COUNT(*) FROM graph_history  WHERE timestamp   >= p_since)
+        'langgraph_states',   (SELECT COUNT(*) FROM langgraph_states   WHERE updated_at  >= p_since),
+        'langgraph_history',  (SELECT COUNT(*) FROM langgraph_history  WHERE timestamp   >= p_since)
     ) INTO v_counts;
 
     UPDATE backup_jobs
@@ -484,7 +484,7 @@ COMMENT ON FUNCTION restore_agent_state IS
 
 -- ============================================================
 -- PROCEDURE: restore_graph_state
--- Restores graph_states rows and all associated child records
+-- Restores langgraph_states rows and all associated child records
 -- (edges, checkpoints, history) for a specific state_key
 -- from a JSON backup blob.
 -- ============================================================
@@ -512,13 +512,13 @@ BEGIN
     VALUES (
         'running',
         p_state_key,
-        ARRAY['graph_states', 'graph_edges', 'graph_checkpoints', 'graph_history'],
+        ARRAY['langgraph_states', 'langgraph_edges', 'langgraph_checkpoints', 'langgraph_history'],
         NOW()
     )
     RETURNING id INTO v_restore_id;
 
-    -- Restore graph_states row
-    INSERT INTO graph_states (
+    -- Restore langgraph_states row
+    INSERT INTO langgraph_states (
         id, state_key, state_data, step_history,
         team_results, decisions, deployment_ready,
         created_at, updated_at
@@ -547,7 +547,7 @@ BEGIN
             SELECT * FROM jsonb_to_recordset(p_edges_data)
             AS x(id UUID, from_node TEXT, to_node TEXT, decision_data JSONB, timestamp TIMESTAMPTZ)
         LOOP
-            INSERT INTO graph_edges (id, state_key, from_node, to_node, decision_data, timestamp)
+            INSERT INTO langgraph_edges (id, state_key, from_node, to_node, decision_data, timestamp)
             VALUES (
                 v_edge.id, p_state_key,
                 v_edge.from_node, v_edge.to_node,
@@ -565,7 +565,7 @@ BEGIN
             SELECT * FROM jsonb_to_recordset(p_checkpoints_data)
             AS x(id UUID, checkpoint_id TEXT, state_data JSONB, node_name TEXT, created_at TIMESTAMPTZ)
         LOOP
-            INSERT INTO graph_checkpoints (
+            INSERT INTO langgraph_checkpoints (
                 id, state_key, checkpoint_id, state_data, node_name, created_at
             )
             VALUES (
@@ -590,7 +590,7 @@ BEGIN
                 error_message TEXT, success BOOLEAN, timestamp TIMESTAMPTZ
             )
         LOOP
-            INSERT INTO graph_history (
+            INSERT INTO langgraph_history (
                 id, state_key, node_name, input_data, output_data,
                 duration_ms, error_message, success, timestamp
             )
@@ -614,10 +614,10 @@ BEGIN
         status       = 'completed',
         completed_at = NOW(),
         row_counts   = jsonb_build_object(
-            'graph_states',      1,
-            'graph_edges',       v_edge_count,
-            'graph_checkpoints', v_cp_count,
-            'graph_history',     v_hist_count
+            'langgraph_states',      1,
+            'langgraph_edges',       v_edge_count,
+            'langgraph_checkpoints', v_cp_count,
+            'langgraph_history',     v_hist_count
         )
     WHERE id = v_restore_id;
 
@@ -658,7 +658,7 @@ $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION restore_graph_state IS
     'Restores a complete graph execution (state, edges, checkpoints, history) from JSON blobs. '
-    'Upserts graph_states and inserts child rows (ON CONFLICT DO NOTHING). '
+    'Upserts langgraph_states and inserts child rows (ON CONFLICT DO NOTHING). '
     'Returns the restore_job UUID.';
 
 -- ============================================================
@@ -766,13 +766,13 @@ BEGIN
         UNION ALL
         SELECT 'audit_log',                COUNT(*)::BIGINT FROM audit_log
         UNION ALL
-        SELECT 'graph_states',             COUNT(*)::BIGINT FROM graph_states
+        SELECT 'langgraph_states',             COUNT(*)::BIGINT FROM langgraph_states
         UNION ALL
-        SELECT 'graph_edges',              COUNT(*)::BIGINT FROM graph_edges
+        SELECT 'langgraph_edges',              COUNT(*)::BIGINT FROM langgraph_edges
         UNION ALL
-        SELECT 'graph_checkpoints',        COUNT(*)::BIGINT FROM graph_checkpoints
+        SELECT 'langgraph_checkpoints',        COUNT(*)::BIGINT FROM langgraph_checkpoints
         UNION ALL
-        SELECT 'graph_history',            COUNT(*)::BIGINT FROM graph_history
+        SELECT 'langgraph_history',            COUNT(*)::BIGINT FROM langgraph_history
     )
     SELECT
         bc.tbl::TEXT,

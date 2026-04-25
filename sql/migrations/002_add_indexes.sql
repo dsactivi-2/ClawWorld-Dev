@@ -181,105 +181,105 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_log_data_gin
     WHERE data IS NOT NULL;
 
 -- -------------------------------------------------------
--- graph_states indexes
+-- langgraph_states indexes
 -- -------------------------------------------------------
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_states_state_key
-    ON graph_states (state_key);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_states_state_key
+    ON langgraph_states (state_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_states_deployment_ready
-    ON graph_states (deployment_ready)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_states_deployment_ready
+    ON langgraph_states (deployment_ready)
     WHERE deployment_ready = TRUE;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_states_created_at
-    ON graph_states (created_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_states_created_at
+    ON langgraph_states (created_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_states_updated_at
-    ON graph_states (updated_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_states_updated_at
+    ON langgraph_states (updated_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_states_state_data_gin
-    ON graph_states USING GIN (state_data);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_states_state_data_gin
+    ON langgraph_states USING GIN (state_data);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_states_team_results_gin
-    ON graph_states USING GIN (team_results);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_states_team_results_gin
+    ON langgraph_states USING GIN (team_results);
 
 -- -------------------------------------------------------
--- graph_edges indexes
+-- langgraph_edges indexes
 -- -------------------------------------------------------
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_edges_state_key
-    ON graph_edges (state_key);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_edges_state_key
+    ON langgraph_edges (state_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_edges_from_node
-    ON graph_edges (from_node);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_edges_from_node
+    ON langgraph_edges (from_node);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_edges_to_node
-    ON graph_edges (to_node);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_edges_to_node
+    ON langgraph_edges (to_node);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_edges_timestamp
-    ON graph_edges (timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_edges_timestamp
+    ON langgraph_edges (timestamp DESC);
 
 -- Composite: all edges for a state ordered by time (replay)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_edges_state_time
-    ON graph_edges (state_key, timestamp ASC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_edges_state_time
+    ON langgraph_edges (state_key, timestamp ASC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_edges_decision_gin
-    ON graph_edges USING GIN (decision_data)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_edges_decision_gin
+    ON langgraph_edges USING GIN (decision_data)
     WHERE decision_data IS NOT NULL;
 
 -- -------------------------------------------------------
--- graph_checkpoints indexes
+-- langgraph_checkpoints indexes
 -- -------------------------------------------------------
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_checkpoints_state_key
-    ON graph_checkpoints (state_key);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_checkpoints_state_key
+    ON langgraph_checkpoints (state_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_checkpoints_checkpoint_id
-    ON graph_checkpoints (checkpoint_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_checkpoints_checkpoint_id
+    ON langgraph_checkpoints (checkpoint_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_checkpoints_node_name
-    ON graph_checkpoints (node_name);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_checkpoints_node_name
+    ON langgraph_checkpoints (node_name);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_checkpoints_created_at
-    ON graph_checkpoints (created_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_checkpoints_created_at
+    ON langgraph_checkpoints (created_at DESC);
 
 -- Composite: latest checkpoint per state (resume lookup)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_checkpoints_state_created
-    ON graph_checkpoints (state_key, created_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_checkpoints_state_created
+    ON langgraph_checkpoints (state_key, created_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_checkpoints_state_data_gin
-    ON graph_checkpoints USING GIN (state_data);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_checkpoints_state_data_gin
+    ON langgraph_checkpoints USING GIN (state_data);
 
 -- -------------------------------------------------------
--- graph_history indexes
+-- langgraph_history indexes
 -- -------------------------------------------------------
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_state_key
-    ON graph_history (state_key);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_state_key
+    ON langgraph_history (state_key);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_node_name
-    ON graph_history (node_name);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_node_name
+    ON langgraph_history (node_name);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_success
-    ON graph_history (success);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_success
+    ON langgraph_history (success);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_timestamp
-    ON graph_history (timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_timestamp
+    ON langgraph_history (timestamp DESC);
 
 -- Composite: per-state per-node history
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_state_node
-    ON graph_history (state_key, node_name);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_state_node
+    ON langgraph_history (state_key, node_name);
 
 -- Partial index: failed executions only (error investigation)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_failed
-    ON graph_history (state_key, timestamp DESC)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_failed
+    ON langgraph_history (state_key, timestamp DESC)
     WHERE success = FALSE;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_input_gin
-    ON graph_history USING GIN (input_data);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_input_gin
+    ON langgraph_history USING GIN (input_data);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_output_gin
-    ON graph_history USING GIN (output_data)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_langgraph_history_output_gin
+    ON langgraph_history USING GIN (output_data)
     WHERE output_data IS NOT NULL;
 
 -- ============================================================
@@ -289,39 +289,39 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_graph_history_output_gin
 /*
 DOWN:
 
--- graph_history
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_output_gin;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_input_gin;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_failed;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_state_node;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_timestamp;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_success;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_node_name;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_history_state_key;
+-- langgraph_history
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_output_gin;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_input_gin;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_failed;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_state_node;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_timestamp;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_success;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_node_name;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_history_state_key;
 
--- graph_checkpoints
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_checkpoints_state_data_gin;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_checkpoints_state_created;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_checkpoints_created_at;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_checkpoints_node_name;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_checkpoints_checkpoint_id;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_checkpoints_state_key;
+-- langgraph_checkpoints
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_checkpoints_state_data_gin;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_checkpoints_state_created;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_checkpoints_created_at;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_checkpoints_node_name;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_checkpoints_checkpoint_id;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_checkpoints_state_key;
 
--- graph_edges
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_edges_decision_gin;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_edges_state_time;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_edges_timestamp;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_edges_to_node;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_edges_from_node;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_edges_state_key;
+-- langgraph_edges
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_edges_decision_gin;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_edges_state_time;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_edges_timestamp;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_edges_to_node;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_edges_from_node;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_edges_state_key;
 
--- graph_states
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_states_team_results_gin;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_states_state_data_gin;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_states_updated_at;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_states_created_at;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_states_deployment_ready;
-DROP INDEX CONCURRENTLY IF EXISTS idx_graph_states_state_key;
+-- langgraph_states
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_states_team_results_gin;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_states_state_data_gin;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_states_updated_at;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_states_created_at;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_states_deployment_ready;
+DROP INDEX CONCURRENTLY IF EXISTS idx_langgraph_states_state_key;
 
 -- audit_log
 DROP INDEX CONCURRENTLY IF EXISTS idx_audit_log_data_gin;
