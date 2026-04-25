@@ -3,7 +3,6 @@
  * Covers: LangGraphOrchestrator, GraphMemoryManager, TeamSpawningSkill, WorkflowOrchestrationSkill
  */
 
-import { EventEmitter } from 'events';
 
 // ---------------------------------------------------------------------------
 // Mock external dependencies BEFORE importing any source files
@@ -92,7 +91,6 @@ jest.mock('../../src/utils/logger', () => ({
 // ---------------------------------------------------------------------------
 
 import { Pool } from 'pg';
-import Anthropic from '@anthropic-ai/sdk';
 import { StateGraph } from '@langchain/langgraph';
 import { LangGraphOrchestrator } from '../../src/orchestrator/langgraph-orchestrator';
 import { GraphMemoryManager } from '../../src/memory/graph-memory';

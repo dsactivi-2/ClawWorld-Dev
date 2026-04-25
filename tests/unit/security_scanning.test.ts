@@ -27,8 +27,6 @@ import {
   SecurityScanValidationError,
   SecurityScanError,
   type SecurityFinding,
-  type SecretScanResult,
-  type DependencyScanResult,
 } from '../../skills/security_scanning';
 
 const mockFs = jest.mocked(fs);
@@ -191,7 +189,7 @@ describe('SecurityScanningSkill', () => {
 
     it('should provide an autoFix for apt-get install without --no-install-recommends', async () => {
       const content =
-        'FROM debian:12\nRUN apt-get update && apt-get install curl\nUSER nonroot\n';
+        'FROM debian:12\nRUN apt-get install curl\nUSER nonroot\n';
       mockFs.readFile = jest.fn().mockResolvedValue(content);
       const result = await scanner.scanDockerfile('/fake/Dockerfile');
       const finding = result.findings.find((f) => f.autoFixable);

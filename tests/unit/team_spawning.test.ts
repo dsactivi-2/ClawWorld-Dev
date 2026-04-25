@@ -25,9 +25,14 @@ import {
 
 function makeAgentConfig(overrides: Record<string, unknown> = {}) {
   return {
+    id: `agent-${Math.random().toString(36).slice(2, 8)}`,
     name: 'test-agent',
     model: 'claude-sonnet',
     systemPrompt: 'You are a test agent.',
+    maxTokens: 2048,
+    temperature: 0.5,
+    tools: [] as string[],
+    metadata: {} as Record<string, unknown>,
     ...overrides,
   };
 }

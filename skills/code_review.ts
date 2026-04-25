@@ -653,12 +653,22 @@ Return ONLY the JSON array, no additional text.`;
       const regex =
         pattern instanceof RegExp ? new RegExp(pattern.source, pattern.flags) : new RegExp(pattern);
 
-      lines.forEach((line, idx) => {
+      // eol-newline must only be checked on the final line of the file.
+      // Splitting by '\n' strips the newline character from every line, so
+      // applying the pattern to all lines would produce false positives on
+      // every non-empty line. When the file ends with '\n', split produces an
+      // empty-string last element that won't match — correct behaviour.
+      const checkLines =
+        ruleName === 'eol-newline' ? [lines[lines.length - 1] ?? ''] : lines;
+
+      checkLines.forEach((line, rawIdx) => {
+        const lineNumber =
+          ruleName === 'eol-newline' ? lines.length : rawIdx + 1;
         if (regex.test(line)) {
           findings.push({
             severity: 'warning',
             file,
-            line: idx + 1,
+            line: lineNumber,
             rule: ruleName,
             message: `Rule "${ruleName}" violation detected`,
           });

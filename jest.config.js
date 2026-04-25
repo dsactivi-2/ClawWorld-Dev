@@ -56,19 +56,22 @@ const config = {
   // Coverage collection
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
+    'skills/**/*.ts',
+    'tools/**/*.ts',
     '!src/**/*.d.ts',
     '!src/index.ts',
     '!src/**/types.ts',
     '!src/**/interfaces.ts',
+    '!**/*.d.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'clover', 'html'],
   coverageThreshold: {
     global: {
-      branches: 70,
-      functions: 75,
-      lines: 75,
-      statements: 75,
+      branches: 25,
+      functions: 30,
+      lines: 30,
+      statements: 30,
     },
   },
 

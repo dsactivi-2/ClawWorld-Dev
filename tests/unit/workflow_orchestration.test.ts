@@ -270,7 +270,7 @@ describe('WorkflowOrchestrationSkill', () => {
       await execPromise;
 
       expect(instanceRef).not.toBeNull();
-      expect((instanceRef as WorkflowInstance).status).toBe('cancelled');
+      expect((instanceRef as unknown as WorkflowInstance).status).toBe('cancelled');
     });
   });
 

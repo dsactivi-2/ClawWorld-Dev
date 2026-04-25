@@ -262,10 +262,10 @@ jobs:
           echo "| URL | https://openclaw.yourdomain.com |" >> $GITHUB_STEP_SUMMARY
 
   # ---------------------------------------------------------------------------
-  # Job 5 — Slack notification
+  # Job 5 — Telegram notification
   # ---------------------------------------------------------------------------
   notify:
-    name: Notify Slack
+    name: Notify Telegram
     needs: [build-push, deploy]
     runs-on: ubuntu-latest
     if: always()
@@ -275,36 +275,25 @@ jobs:
         id: status
         run: |
           if [[ "${{ needs.deploy.result }}" == "success" ]]; then
-            echo "color=good"            >> $GITHUB_OUTPUT
-            echo "emoji=:rocket:"        >> $GITHUB_OUTPUT
+            echo "emoji=🚀"              >> $GITHUB_OUTPUT
             echo "text=Deploy succeeded" >> $GITHUB_OUTPUT
           else
-            echo "color=danger"          >> $GITHUB_OUTPUT
-            echo "emoji=:red_circle:"    >> $GITHUB_OUTPUT
+            echo "emoji=🔴"              >> $GITHUB_OUTPUT
             echo "text=Deploy FAILED"    >> $GITHUB_OUTPUT
           fi
 
-      - name: Send Slack notification
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "attachments": [
-                {
-                  "color": "${{ steps.status.outputs.color }}",
-                  "title": "${{ steps.status.outputs.emoji }} openclaw-teams — ${{ steps.status.outputs.text }}",
-                  "fields": [
-                    { "title": "Branch",    "value": "${{ github.ref_name }}", "short": true },
-                    { "title": "Commit",    "value": "${{ github.sha }}",      "short": true },
-                    { "title": "Author",    "value": "${{ github.actor }}",    "short": true },
-                    { "title": "Image",     "value": "`${{ needs.build-push.outputs.image }}`", "short": false },
-                    { "title": "Workflow",  "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>", "short": false }
-                  ],
-                  "footer": "GitHub Actions",
-                  "ts": "${{ github.event.head_commit.timestamp }}"
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      - name: Send Telegram notification
+        run: |
+          MESSAGE="${{ steps.status.outputs.emoji }} *openclaw-teams — ${{ steps.status.outputs.text }}*
+
+          📌 Branch: \`${{ github.ref_name }}\`
+          🔖 Commit: \`${{ github.sha }}\`
+          👤 Author: ${{ github.actor }}
+          🐳 Image: \`${{ needs.build-push.outputs.image }}\`
+          🔗 [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --fail \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            --data-urlencode "text=${MESSAGE}" || echo "::warning::Telegram notification failed (token/chat_id not configured)"

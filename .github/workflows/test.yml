@@ -115,7 +115,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage
-          flags: unittests,integration
+          flags: unittests
           name: openclaw-teams-${{ github.sha }}
           fail_ci_if_error: false
 

@@ -338,8 +338,8 @@ describe('CodeReviewSkill', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: jest.fn().mockResolvedValue([
-          { filename: 'src/a.ts', patch: `export const clean = true;` },
-          { filename: 'src/b.ts', patch: `export const clean = true;` },
+          { filename: 'src/a.ts', patch: `export const clean = true;\n` },
+          { filename: 'src/b.ts', patch: `export const clean = true;\n` },
         ]),
       });
 
