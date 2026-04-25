@@ -129,11 +129,16 @@ export interface PerformanceReport {
   callHistory: AgentCallProfile[];
 }
 
-/** Cost per token in USD for common models */
+/** Cost per token in USD for common models (Anthropic direct + OpenRouter names) */
 const MODEL_COST_PER_TOKEN: Record<string, number> = {
+  // Anthropic direct
   'claude-opus-4-6': 0.000_015,
   'claude-sonnet-4-6': 0.000_003,
   'claude-haiku-4-5-20251001': 0.000_000_25,
+  // OpenRouter prefixed
+  'anthropic/claude-opus-4-5': 0.000_015,
+  'anthropic/claude-sonnet-4-5': 0.000_003,
+  'anthropic/claude-haiku-3-5': 0.000_000_25,
   default: 0.000_003,
 };
 

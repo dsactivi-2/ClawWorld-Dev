@@ -10,8 +10,10 @@
  *   6. deploySystem          — assemble final plan and mark deployment-ready
  *
  * Models used:
- *   - claude-sonnet-4-6          → builder reasoning (planArchitecture, buildAgents)
- *   - claude-sonnet-4-6          → supervisor / validation reasoning (analyzeRequirements, validateAndTest)
+ *   - ANTHROPIC_MODEL_BUILDER     → builder reasoning (planArchitecture, buildAgents)
+ *   - ANTHROPIC_MODEL_SUPERVISOR  → supervisor / validation reasoning (analyzeRequirements, validateAndTest)
+ *     Defaults: "anthropic/claude-sonnet-4-5" (OpenRouter).  Set env vars to
+ *     override, e.g. "claude-sonnet-4-6" for direct Anthropic API.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -33,10 +35,14 @@ const log = createLogger('LangGraphOrchestrator');
 
 // ---------------------------------------------------------------------------
 // Model constants
+// Read from env so the provider (Anthropic direct vs OpenRouter) can be
+// switched without code changes.  OpenRouter requires the "anthropic/" prefix,
+// e.g. "anthropic/claude-sonnet-4-5".  When targeting Anthropic directly use
+// the native name, e.g. "claude-sonnet-4-6".
 // ---------------------------------------------------------------------------
 
-const MODEL_BUILDER = 'claude-sonnet-4-6';
-const MODEL_SUPERVISOR = 'claude-sonnet-4-6';
+const MODEL_BUILDER   = process.env['ANTHROPIC_MODEL_BUILDER']   ?? 'anthropic/claude-sonnet-4-5';
+const MODEL_SUPERVISOR = process.env['ANTHROPIC_MODEL_SUPERVISOR'] ?? 'anthropic/claude-sonnet-4-5';
 
 // ---------------------------------------------------------------------------
 // Retry configuration

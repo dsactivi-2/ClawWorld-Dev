@@ -54,6 +54,10 @@ jobs:
       REDIS_URL: redis://localhost:6379/0
       JWT_SECRET: 512985bcd4debdb9e04aabb0db898ab2b0bc3489a989cb3f6002879ce3933ff7238d97be1b64e01f6c41f7d880a2ca5d92a28d56d8686ff56c47ff39e6f29398
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+      ANTHROPIC_BASE_URL: https://openrouter.ai/api/v1
+      ANTHROPIC_MODEL_BUILDER: anthropic/claude-sonnet-4-5
+      ANTHROPIC_MODEL_SUPERVISOR: anthropic/claude-sonnet-4-5
+      ANTHROPIC_MODEL_FAST: anthropic/claude-haiku-3-5
 
     steps:
       - name: Checkout
@@ -114,6 +118,8 @@ jobs:
           NODE_ENV: test
           PORT: 3000
           LOG_LEVEL: warn
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+          ANTHROPIC_BASE_URL: https://openrouter.ai/api/v1
 
       - name: E2E tests
         run: pnpm test:e2e

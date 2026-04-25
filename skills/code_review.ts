@@ -514,7 +514,7 @@ Return ONLY the JSON array, no additional text.`;
 
     try {
       const response = await this.anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: process.env['ANTHROPIC_MODEL_FAST'] ?? 'anthropic/claude-haiku-3-5',
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
       });
