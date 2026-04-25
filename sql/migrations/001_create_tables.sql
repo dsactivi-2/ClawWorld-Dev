@@ -190,21 +190,14 @@ CREATE TRIGGER trg_audit_log_no_delete
 
 -- -------------------------------------------------------
 -- TABLE: langgraph_states
+-- Schema must match GraphMemoryManager.initialize() exactly.
 -- -------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS langgraph_states (
-    id                  UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state_key           VARCHAR(512) NOT NULL,
-    state_data          JSONB       NOT NULL DEFAULT '{}',
-    step_history        TEXT[]      NOT NULL DEFAULT '{}',
-    team_results        JSONB       NOT NULL DEFAULT '{}',
-    decisions           JSONB[]     NOT NULL DEFAULT '{}',
-    deployment_ready    BOOLEAN     NOT NULL DEFAULT FALSE,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT langgraph_states_state_key_unique UNIQUE (state_key),
-    CONSTRAINT langgraph_states_state_data_is_object   CHECK (jsonb_typeof(state_data)   = 'object'),
-    CONSTRAINT langgraph_states_team_results_is_object CHECK (jsonb_typeof(team_results) = 'object')
+    state_key   TEXT        PRIMARY KEY,
+    state       JSONB       NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER trg_langgraph_states_updated_at
@@ -216,15 +209,11 @@ CREATE TRIGGER trg_langgraph_states_updated_at
 -- -------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS langgraph_edges (
-    id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state_key       VARCHAR(512) NOT NULL REFERENCES langgraph_states (state_key) ON DELETE CASCADE,
-    from_node       VARCHAR(255) NOT NULL,
-    to_node         VARCHAR(255) NOT NULL,
-    decision_data   JSONB,
-    timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT langgraph_edges_decision_data_is_object CHECK (
-        decision_data IS NULL OR jsonb_typeof(decision_data) = 'object'
-    )
+    id          BIGSERIAL   PRIMARY KEY,
+    state_key   TEXT        NOT NULL REFERENCES langgraph_states (state_key) ON DELETE CASCADE,
+    from_node   TEXT,
+    to_node     TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- -------------------------------------------------------
@@ -232,34 +221,22 @@ CREATE TABLE IF NOT EXISTS langgraph_edges (
 -- -------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS langgraph_checkpoints (
-    id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state_key       VARCHAR(512) NOT NULL REFERENCES langgraph_states (state_key) ON DELETE CASCADE,
-    checkpoint_id   VARCHAR(512) NOT NULL,
-    state_data      JSONB       NOT NULL DEFAULT '{}',
-    node_name       VARCHAR(255) NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT langgraph_checkpoints_checkpoint_id_unique UNIQUE (checkpoint_id),
-    CONSTRAINT langgraph_checkpoints_state_data_is_object CHECK (jsonb_typeof(state_data) = 'object')
+    id          BIGSERIAL   PRIMARY KEY,
+    state_key   TEXT        NOT NULL REFERENCES langgraph_states (state_key) ON DELETE CASCADE,
+    node_name   TEXT        NOT NULL,
+    state       JSONB       NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- -------------------------------------------------------
--- TABLE: langgraph_history
+-- TABLE: langgraph_step_history
 -- -------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS langgraph_history (
-    id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state_key       VARCHAR(512) NOT NULL REFERENCES langgraph_states (state_key) ON DELETE CASCADE,
-    node_name       VARCHAR(255) NOT NULL,
-    input_data      JSONB       NOT NULL DEFAULT '{}',
-    output_data     JSONB,
-    duration_ms     INTEGER,
-    error_message   TEXT,
-    success         BOOLEAN     NOT NULL DEFAULT TRUE,
-    timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT langgraph_history_duration_positive CHECK (duration_ms IS NULL OR duration_ms >= 0),
-    CONSTRAINT langgraph_history_input_is_object   CHECK (jsonb_typeof(input_data) = 'object'),
-    CONSTRAINT langgraph_history_output_is_object  CHECK (output_data IS NULL OR jsonb_typeof(output_data) = 'object'),
-    CONSTRAINT langgraph_history_error_when_failed CHECK (success = TRUE OR error_message IS NOT NULL)
+CREATE TABLE IF NOT EXISTS langgraph_step_history (
+    id          BIGSERIAL   PRIMARY KEY,
+    state_key   TEXT        NOT NULL REFERENCES langgraph_states (state_key) ON DELETE CASCADE,
+    step_name   TEXT        NOT NULL,
+    logged_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
@@ -279,7 +256,7 @@ DROP TRIGGER IF EXISTS trg_workflows_updated_at     ON workflows;
 DROP TRIGGER IF EXISTS trg_skills_updated_at        ON skills;
 DROP TRIGGER IF EXISTS trg_agents_updated_at        ON agents;
 
-DROP TABLE IF EXISTS langgraph_history      CASCADE;
+DROP TABLE IF EXISTS langgraph_step_history CASCADE;
 DROP TABLE IF EXISTS langgraph_checkpoints  CASCADE;
 DROP TABLE IF EXISTS langgraph_edges        CASCADE;
 DROP TABLE IF EXISTS langgraph_states       CASCADE;

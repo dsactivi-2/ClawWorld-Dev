@@ -185,7 +185,7 @@ BEGIN
             'agents', 'agent_sessions', 'agent_tasks',
             'skills', 'workflows', 'workflow_runs',
             'audit_log', 'langgraph_states', 'langgraph_edges',
-            'langgraph_checkpoints', 'langgraph_history'
+            'langgraph_checkpoints', 'langgraph_step_history'
         ],
         NOW()
     )
@@ -203,7 +203,7 @@ BEGIN
         'langgraph_states',      (SELECT COUNT(*) FROM langgraph_states),
         'langgraph_edges',       (SELECT COUNT(*) FROM langgraph_edges),
         'langgraph_checkpoints', (SELECT COUNT(*) FROM langgraph_checkpoints),
-        'langgraph_history',     (SELECT COUNT(*) FROM langgraph_history)
+        'langgraph_step_history',     (SELECT COUNT(*) FROM langgraph_step_history)
     ) INTO v_counts;
 
     UPDATE backup_jobs
@@ -253,7 +253,7 @@ BEGIN
         ARRAY[
             'agents', 'agent_sessions', 'agent_tasks',
             'skills', 'workflows', 'workflow_runs',
-            'langgraph_states', 'langgraph_history'
+            'langgraph_states', 'langgraph_step_history'
         ],
         NOW()
     )
@@ -267,7 +267,7 @@ BEGIN
         'workflows',      (SELECT COUNT(*) FROM workflows      WHERE updated_at  >= p_since),
         'workflow_runs',  (SELECT COUNT(*) FROM workflow_runs  WHERE started_at  >= p_since),
         'langgraph_states',   (SELECT COUNT(*) FROM langgraph_states   WHERE updated_at  >= p_since),
-        'langgraph_history',  (SELECT COUNT(*) FROM langgraph_history  WHERE timestamp   >= p_since)
+        'langgraph_step_history',  (SELECT COUNT(*) FROM langgraph_step_history  WHERE logged_at   >= p_since)
     ) INTO v_counts;
 
     UPDATE backup_jobs
@@ -512,99 +512,69 @@ BEGIN
     VALUES (
         'running',
         p_state_key,
-        ARRAY['langgraph_states', 'langgraph_edges', 'langgraph_checkpoints', 'langgraph_history'],
+        ARRAY['langgraph_states', 'langgraph_edges', 'langgraph_checkpoints', 'langgraph_step_history'],
         NOW()
     )
     RETURNING id INTO v_restore_id;
 
-    -- Restore langgraph_states row
-    INSERT INTO langgraph_states (
-        id, state_key, state_data, step_history,
-        team_results, decisions, deployment_ready,
-        created_at, updated_at
-    )
-    SELECT
-        (p_state_data->>'id')::UUID,
+    -- Restore langgraph_states row (schema: state_key TEXT PK, state JSONB, created_at, updated_at)
+    INSERT INTO langgraph_states (state_key, state, created_at, updated_at)
+    VALUES (
         p_state_key,
-        p_state_data->'state_data',
-        ARRAY(SELECT jsonb_array_elements_text(p_state_data->'step_history')),
-        COALESCE(p_state_data->'team_results', '{}'),
-        ARRAY(SELECT elem FROM jsonb_array_elements(COALESCE(p_state_data->'decisions', '[]')) AS elem),
-        COALESCE((p_state_data->>'deployment_ready')::BOOLEAN, FALSE),
+        p_state_data,
         COALESCE((p_state_data->>'created_at')::TIMESTAMPTZ, NOW()),
         NOW()
+    )
     ON CONFLICT (state_key) DO UPDATE SET
-        state_data       = EXCLUDED.state_data,
-        step_history     = EXCLUDED.step_history,
-        team_results     = EXCLUDED.team_results,
-        decisions        = EXCLUDED.decisions,
-        deployment_ready = EXCLUDED.deployment_ready,
-        updated_at       = NOW();
+        state      = EXCLUDED.state,
+        updated_at = NOW();
 
-    -- Restore edges
+    -- Restore edges (schema: id BIGSERIAL PK, state_key, from_node, to_node, created_at)
     IF p_edges_data IS NOT NULL THEN
         FOR v_edge IN
             SELECT * FROM jsonb_to_recordset(p_edges_data)
-            AS x(id UUID, from_node TEXT, to_node TEXT, decision_data JSONB, timestamp TIMESTAMPTZ)
+            AS x(from_node TEXT, to_node TEXT, created_at TIMESTAMPTZ)
         LOOP
-            INSERT INTO langgraph_edges (id, state_key, from_node, to_node, decision_data, timestamp)
+            INSERT INTO langgraph_edges (state_key, from_node, to_node, created_at)
             VALUES (
-                v_edge.id, p_state_key,
-                v_edge.from_node, v_edge.to_node,
-                v_edge.decision_data,
-                COALESCE(v_edge.timestamp, NOW())
-            )
-            ON CONFLICT (id) DO NOTHING;
+                p_state_key,
+                v_edge.from_node,
+                v_edge.to_node,
+                COALESCE(v_edge.created_at, NOW())
+            );
             v_edge_count := v_edge_count + 1;
         END LOOP;
     END IF;
 
-    -- Restore checkpoints
+    -- Restore checkpoints (schema: id BIGSERIAL PK, state_key, node_name, state JSONB, created_at)
     IF p_checkpoints_data IS NOT NULL THEN
         FOR v_cp IN
             SELECT * FROM jsonb_to_recordset(p_checkpoints_data)
-            AS x(id UUID, checkpoint_id TEXT, state_data JSONB, node_name TEXT, created_at TIMESTAMPTZ)
+            AS x(node_name TEXT, state JSONB, created_at TIMESTAMPTZ)
         LOOP
-            INSERT INTO langgraph_checkpoints (
-                id, state_key, checkpoint_id, state_data, node_name, created_at
-            )
+            INSERT INTO langgraph_checkpoints (state_key, node_name, state, created_at)
             VALUES (
-                v_cp.id, p_state_key,
-                v_cp.checkpoint_id,
-                COALESCE(v_cp.state_data, '{}'),
+                p_state_key,
                 v_cp.node_name,
+                COALESCE(v_cp.state, '{}'),
                 COALESCE(v_cp.created_at, NOW())
-            )
-            ON CONFLICT (checkpoint_id) DO NOTHING;
+            );
             v_cp_count := v_cp_count + 1;
         END LOOP;
     END IF;
 
-    -- Restore history
+    -- Restore step history (schema: id BIGSERIAL PK, state_key, step_name, logged_at)
     IF p_history_data IS NOT NULL THEN
         FOR v_hist IN
             SELECT * FROM jsonb_to_recordset(p_history_data)
-            AS x(
-                id UUID, node_name TEXT, input_data JSONB,
-                output_data JSONB, duration_ms INTEGER,
-                error_message TEXT, success BOOLEAN, timestamp TIMESTAMPTZ
-            )
+            AS x(step_name TEXT, logged_at TIMESTAMPTZ)
         LOOP
-            INSERT INTO langgraph_history (
-                id, state_key, node_name, input_data, output_data,
-                duration_ms, error_message, success, timestamp
-            )
+            INSERT INTO langgraph_step_history (state_key, step_name, logged_at)
             VALUES (
-                v_hist.id, p_state_key,
-                v_hist.node_name,
-                COALESCE(v_hist.input_data, '{}'),
-                v_hist.output_data,
-                v_hist.duration_ms,
-                v_hist.error_message,
-                COALESCE(v_hist.success, TRUE),
-                COALESCE(v_hist.timestamp, NOW())
-            )
-            ON CONFLICT (id) DO NOTHING;
+                p_state_key,
+                v_hist.step_name,
+                COALESCE(v_hist.logged_at, NOW())
+            );
             v_hist_count := v_hist_count + 1;
         END LOOP;
     END IF;
@@ -617,7 +587,7 @@ BEGIN
             'langgraph_states',      1,
             'langgraph_edges',       v_edge_count,
             'langgraph_checkpoints', v_cp_count,
-            'langgraph_history',     v_hist_count
+            'langgraph_step_history',     v_hist_count
         )
     WHERE id = v_restore_id;
 
@@ -772,7 +742,7 @@ BEGIN
         UNION ALL
         SELECT 'langgraph_checkpoints',        COUNT(*)::BIGINT FROM langgraph_checkpoints
         UNION ALL
-        SELECT 'langgraph_history',            COUNT(*)::BIGINT FROM langgraph_history
+        SELECT 'langgraph_step_history',            COUNT(*)::BIGINT FROM langgraph_step_history
     )
     SELECT
         bc.tbl::TEXT,
