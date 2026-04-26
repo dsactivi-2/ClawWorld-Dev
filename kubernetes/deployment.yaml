@@ -41,7 +41,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: openclaw-gateway
-          image: ghcr.io/clawworld/openclaw-teams:latest
+          image: docker.io/denis8686/openclaw-teams:latest
           imagePullPolicy: Always
           ports:
             - name: http
