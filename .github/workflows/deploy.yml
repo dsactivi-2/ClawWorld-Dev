@@ -107,9 +107,20 @@ jobs:
 
       - name: Configure kubeconfig
         run: |
+          set -euo pipefail
           mkdir -p "${HOME}/.kube"
-          echo "${{ secrets.KUBECONFIG }}" > "${HOME}/.kube/config"
+          if [[ -n "${KUBECONFIG_B64:-}" ]]; then
+            printf '%s' "${KUBECONFIG_B64}" | base64 --decode > "${HOME}/.kube/config"
+          elif [[ -n "${KUBECONFIG_RAW:-}" ]]; then
+            printf '%s' "${KUBECONFIG_RAW}" > "${HOME}/.kube/config"
+          else
+            echo "Missing kubeconfig secret. Set KUBECONFIG_B64 (preferred) or KUBECONFIG." >&2
+            exit 1
+          fi
           chmod 600 "${HOME}/.kube/config"
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+          KUBECONFIG_RAW: ${{ secrets.KUBECONFIG }}
 
       - name: Verify cluster connectivity
         run: kubectl cluster-info --request-timeout=10s
@@ -187,9 +198,20 @@ jobs:
 
       - name: Configure kubeconfig
         run: |
+          set -euo pipefail
           mkdir -p "${HOME}/.kube"
-          echo "${{ secrets.KUBECONFIG }}" > "${HOME}/.kube/config"
+          if [[ -n "${KUBECONFIG_B64:-}" ]]; then
+            printf '%s' "${KUBECONFIG_B64}" | base64 --decode > "${HOME}/.kube/config"
+          elif [[ -n "${KUBECONFIG_RAW:-}" ]]; then
+            printf '%s' "${KUBECONFIG_RAW}" > "${HOME}/.kube/config"
+          else
+            echo "Missing kubeconfig secret. Set KUBECONFIG_B64 (preferred) or KUBECONFIG." >&2
+            exit 1
+          fi
           chmod 600 "${HOME}/.kube/config"
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+          KUBECONFIG_RAW: ${{ secrets.KUBECONFIG }}
 
       - name: Verify cluster connectivity
         run: kubectl cluster-info --request-timeout=10s
