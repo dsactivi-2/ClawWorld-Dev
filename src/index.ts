@@ -342,6 +342,9 @@ async function start(): Promise<void> {
 start().catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
   console.error('Failed to start OpenClaw Teams:', message);
+  if (err instanceof Error && err.stack) {
+    console.error(err.stack);
+  }
   process.exit(1);
 });
 

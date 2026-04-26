@@ -22,6 +22,8 @@ spec:
         app.kubernetes.io/component: database
         app.kubernetes.io/part-of: openclaw
     spec:
+      imagePullSecrets:
+        - name: dockerhub-regcred
       securityContext:
         runAsUser: 999
         runAsGroup: 999

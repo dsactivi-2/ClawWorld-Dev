@@ -38,10 +38,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - openclaw.yourdomain.com
+        - ocw-dev.k8.activi.io
       secretName: openclaw-tls-cert
   rules:
-    - host: openclaw.yourdomain.com
+    - host: ocw-dev.k8.activi.io
       http:
         paths:
           - path: /

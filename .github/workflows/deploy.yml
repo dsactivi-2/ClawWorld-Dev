@@ -245,21 +245,29 @@ jobs:
 
       - name: Create Docker Hub pull secret
         run: |
-          kubectl create secret docker-registry dockerhub-pull-secret \
+          # Use --dry-run=client + apply for idempotent upsert
+          kubectl create secret docker-registry dockerhub-regcred \
             --docker-server=docker.io \
             --docker-username="${{ secrets.DOCKERHUB_USERNAME }}" \
             --docker-password="${{ secrets.DOCKERHUB_TOKEN }}" \
             --namespace="${{ env.NAMESPACE }}" \
             --dry-run=client -o yaml | kubectl apply -f -
+          # Patch both SAs so postgres/redis pods can also pull
+          kubectl patch serviceaccount openclaw-gateway \
+            --namespace="${{ env.NAMESPACE }}" \
+            -p '{"imagePullSecrets":[{"name":"dockerhub-regcred"}]}' || true
+          kubectl patch serviceaccount default \
+            --namespace="${{ env.NAMESPACE }}" \
+            -p '{"imagePullSecrets":[{"name":"dockerhub-regcred"}]}' || true
 
       - name: Apply manifests
         run: |
           set -euo pipefail
+
+          # Regular manifests — normal apply
           for manifest in \
             kubernetes/namespace.yaml \
             kubernetes/configmap.yaml \
-            kubernetes/statefulset-postgres.yaml \
-            kubernetes/statefulset-redis.yaml \
             kubernetes/deployment.yaml \
             kubernetes/service.yaml \
             kubernetes/ingress.yaml \
@@ -267,6 +275,17 @@ jobs:
             kubernetes/networkpolicy.yaml; do
             echo "Applying ${manifest}..."
             kubectl apply -f "${manifest}" --namespace="${{ env.NAMESPACE }}"
+          done
+
+          # StatefulSets — volumeClaimTemplates are immutable; replace --force if apply fails
+          for manifest in \
+            kubernetes/statefulset-postgres.yaml \
+            kubernetes/statefulset-redis.yaml; do
+            echo "Applying ${manifest}..."
+            if ! kubectl apply -f "${manifest}" --namespace="${{ env.NAMESPACE }}" 2>/dev/null; then
+              echo "StatefulSet spec changed (immutable fields) — force replacing ${manifest}"
+              kubectl replace --force -f "${manifest}" --namespace="${{ env.NAMESPACE }}"
+            fi
           done
 
       - name: Run database migrations (production)

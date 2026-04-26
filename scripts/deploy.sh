@@ -284,7 +284,7 @@ main() {
 
   echo -e "\n${BOLD}${GREEN}Deployment complete!${RESET}"
   echo -e "  Image : ${FULL_IMAGE}"
-  echo -e "  URL   : https://openclaw.yourdomain.com"
+  echo -e "  URL   : https://ocw-dev.k8.activi.io"
 }
 
 main "$@"
