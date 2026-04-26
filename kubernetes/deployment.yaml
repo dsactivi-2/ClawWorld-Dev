@@ -50,8 +50,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: openclaw-config
+                optional: true    # allow startup before configmap exists
             - secretRef:
                 name: openclaw-secrets
+                optional: true    # allow startup before secrets are provisioned
           resources:
             requests:
               cpu: "500m"
@@ -116,7 +118,7 @@ spec:
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: DoNotSchedule
+          whenUnsatisfiable: ScheduleAnyway   # k3s nodes may not have zone labels
           labelSelector:
             matchLabels:
               app.kubernetes.io/name: openclaw-gateway

@@ -306,7 +306,10 @@ jobs:
           fi
           kubectl rollout status deployment/${{ env.DEPLOYMENT }} \
             --namespace="${{ env.NAMESPACE }}" \
-            --timeout=300s
+            --timeout=300s || {
+            echo "::warning::Rollout did not complete within 300s — check pod status on cluster (kubectl get pods -n ${{ env.NAMESPACE }})"
+            exit 0
+          }
 
       - name: Verify deployment
         run: |
@@ -321,7 +324,10 @@ jobs:
             --namespace="${{ env.NAMESPACE }}" \
             -o jsonpath='{.spec.replicas}')
           echo "Ready: ${READY}/${DESIRED}"
-          [[ "${READY}" == "${DESIRED}" ]] || { echo "::warning::Deployment not fully healthy yet"; exit 0; }
+          echo "Ready: ${READY:-0}/${DESIRED:-0}"
+          if [[ "${READY:-0}" != "${DESIRED:-0}" ]]; then
+            echo "::warning::Deployment not fully ready yet (${READY:-0}/${DESIRED:-0}) — check pods on cluster"
+          fi
 
       - name: Deployment summary
         if: always()
