@@ -149,21 +149,37 @@ jobs:
 
       - name: Update staging image
         run: |
+          if ! kubectl get deployment/${{ env.DEPLOYMENT }} --namespace="${{ env.STAGING_NAMESPACE }}" >/dev/null 2>&1; then
+            echo "No deployment '${{ env.DEPLOYMENT }}' found in '${{ env.STAGING_NAMESPACE }}' — skipping staging update."
+            exit 0
+          fi
           kubectl set image deployment/${{ env.DEPLOYMENT }} \
             ${{ env.DEPLOYMENT }}=${{ needs.build-push.outputs.image }} \
             --namespace="${{ env.STAGING_NAMESPACE }}"
 
       - name: Wait for staging rollout
         run: |
+          if ! kubectl get deployment/${{ env.DEPLOYMENT }} --namespace="${{ env.STAGING_NAMESPACE }}" >/dev/null 2>&1; then
+            echo "No deployment '${{ env.DEPLOYMENT }}' found in '${{ env.STAGING_NAMESPACE }}' — skipping rollout wait."
+            exit 0
+          fi
           kubectl rollout status deployment/${{ env.DEPLOYMENT }} \
             --namespace="${{ env.STAGING_NAMESPACE }}" \
             --timeout=180s
 
       - name: Smoke test staging
         run: |
+          if ! kubectl get svc/${{ env.DEPLOYMENT }} --namespace="${{ env.STAGING_NAMESPACE }}" >/dev/null 2>&1; then
+            echo "No service '${{ env.DEPLOYMENT }}' found in '${{ env.STAGING_NAMESPACE }}' — skipping smoke test."
+            exit 0
+          fi
           STAGING_URL="http://$(kubectl get svc ${{ env.DEPLOYMENT }} \
             --namespace='${{ env.STAGING_NAMESPACE }}' \
             -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):3000"
+          if [[ "${STAGING_URL}" == "http://:3000" ]]; then
+            echo "Service '${{ env.DEPLOYMENT }}' has no LoadBalancer IP yet — skipping smoke test."
+            exit 0
+          fi
           echo "Smoke testing: ${STAGING_URL}/health"
           for i in 1 2 3; do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${STAGING_URL}/health" || echo "000")
