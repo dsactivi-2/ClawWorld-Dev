@@ -32,6 +32,9 @@ data:
   AWS_REGION: "us-east-1"
   BACKUP_BUCKET: "openclaw-teams-backups"
 
+  # Anthropic / OpenRouter
+  ANTHROPIC_BASE_URL: "https://openrouter.ai/api/v1"
+
   # Application behaviour
   AGENT_CONCURRENCY: "4"
   AGENT_TIMEOUT_MS: "120000"
